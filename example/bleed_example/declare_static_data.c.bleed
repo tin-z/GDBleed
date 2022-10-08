@@ -1,0 +1,11 @@
+
+
+// support:
+//  - basic numerical types (char, int, long, ..)
+//  - char *
+//  - blob of bytes located somewhere 
+
+int x = 10;
+char * pino = "Hello pino\n";
+blob data1 = 128;
+

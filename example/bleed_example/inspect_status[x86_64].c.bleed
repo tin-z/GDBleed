@@ -1,0 +1,76 @@
+--skip--
+
+#+Function_name: inspect_status
+#+Description: Inspect arguments given to the hooking functions 'pre_func' and 'post_func'
+
+
+
+--declare--
+  // here we declare stuff
+
+@@types@@
+  // todo: structs, enums and types must be defined here
+  
+@@vars@@
+  // declare variables
+  // vars are the same of C plus some extension
+  char c = 0x7f;
+  char aaaa;
+  unsigned char uc;
+  short s;
+  unsigned short us = -2;
+  int i = 0x1337;
+  unsigned int ui = 0;
+  long l = 0;
+  unsigned long ul = 0;
+
+  // in future we need to change parser strategy, for now is fine, also we could change by hande the C source code before compiling it
+  // long long ll = 0;
+  // unsigned long long ull = 0;
+  // ...
+  
+  unsigned int pid;
+  
+  // special type of vars (we need to create space in memory for this)
+  // char * p = "##[==> [%d] - %p:%s\n";
+  char * p = "\n##[==> %s\n arg1:0x%llx\n arg2:0x%llx\n arg3:0x%llx\n arg4:0x%llx\n arg5:0x%llx\n arg6:0x%llx\n fname_length:0x%llx\n fname:0x%llx\n fname_addr:0x%llx\n ret_addr:0x%llx\n num_arg:0x%llx\n sp_arg:0x%llx\n";
+  
+  __static__ pino;
+  
+  // do not list:
+  //  - do not strange assignment otherwise you'll probabily write outside the stack
+  //<!--      e.g.  here, e.g  char example[128] = {0}; char * ptr = &example -->
+  //
+  //  - more... for now just write basic C code
+
+
+@@external-functions@@
+  // declare external function like e.g. [name-func-external]([value]). 
+  //                            [value] : valid value are (0,1,2) representing respectively (void argument, one argument, two or more argument)
+  getpid(0);
+  printf(2);
+
+  // import "internal" function as "__static__ <namespace>.<function-name>(#arguments)"
+  // __static__ namespace1.function1(0);
+  __static__ inspect_status.call_print_pino(2);
+
+
+--code--
+
+@@function@@
+
+@@post_func@@
+
+@@pre_func@@
+  //
+  // here goes the C code
+  // note: casting is not supported yet
+  printf(p, __fname__, __arg1__, __arg2__, __arg3__, __arg4__, __arg5__, __arg6__, __fname_length__, __fname__, __fname_addr__, __ret_addr__, __num_arg__, __sp_arg__);
+  printf(pino);
+
+  call_print_pino(i);
+
+  return 1111;
+  // global variable should be declared with separate command and then ref by '__static__<var-name>' keyword
+
+

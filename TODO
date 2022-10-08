@@ -1,0 +1,7 @@
+
+## TODO list
+
+ - instrumentation e.g. trace basic blocks
+ - add ctypes support
+ - add 'perfom assembly inline in GDB' by using keystone
+

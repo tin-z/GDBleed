@@ -1,0 +1,71 @@
+--skip--
+
+#+Function_name: inspect_status
+#+Description: Inspect arguments given to the hooking functions 'pre_func' and 'post_func'
+
+
+
+--declare--
+
+@@types@@
+  // Ignore section for internal functions
+  
+@@vars@@
+  // Here we declare only static vars and strings
+  char * p = "Inject this. arg1:%d\n";
+  char * p2 = "PID: %d\n";
+  __static__ pino;
+  
+
+@@external-functions@@
+  getpid(0);
+  printf(2);
+
+
+--code--
+
+@@function@@
+
+
+#+define:
+// here we insert includes and struct typedf etc.
+//  - we can have only one "define" sub-section
+#include <sys/types.h>
+#include <unistd.h>
+
+#+function:
+// before declaring a function we must use the keyword "#+function" 
+
+int print_pino(int i)
+{
+  pid_t pid;
+  // example of a string pushed into stack
+  // char p2[] = {'P','I','D',':','%','d','\n'}; <- this var is declared into stack only in intel
+
+  printf(p,i);
+  // printf(pino);
+
+  if (i == 0x1337)
+  {
+    pid = getpid();
+    printf(p2, pid);
+    printf(pino);
+  }
+
+  return 0;
+}
+
+#+function:
+
+int call_print_pino(int j){
+  return print_pino(j);
+}
+
+
+
+@@post_func@@
+  // Ignore section for internal functions
+
+@@pre_func@@
+  // Ignore section for internal functions
+

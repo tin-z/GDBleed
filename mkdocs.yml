@@ -1,0 +1,19 @@
+site_name: GDBleed - Dynamic-Static binary instrumentation framework on top of GDB
+
+theme: 
+  name: readthedocs
+  features:
+    - navigation.instant
+    - navigation.tabs
+
+nav:
+  - Home: index.md
+  - Start: start.md
+  - Settings: settings/readme.md
+  - Commands: commands/readme.md
+  - Hooking strategies:
+    - Strategy: strategy/strategy.md
+    - pre_func: strategy/pre_func.md
+
+
+
