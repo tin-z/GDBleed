@@ -45,6 +45,15 @@ source gdbleed.py
 
  - For more info take a look at the `tests` folder
 
+---
+
+### Usage of the hooking functionalities ###
+
+ - [Start guide](https://tin-z.github.io/gdbleed/start/)
+
+    * For more clearance on how hooking/instrument stuff is working take a look at [strategy doc section](https://tin-z.github.io/gdbleed/strategy/strategy/)
+
+---
 
 ### Req
 
