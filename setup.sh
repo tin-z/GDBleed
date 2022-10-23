@@ -1,6 +1,11 @@
 #!/bin/bash
 
 
+if [ "$1" == "--clean" ]; then
+  rm -rf keystone keystone_repo LIEF lief.so r2pipe
+  exit 1
+fi
+
 ###
 ## 0. Prereq 
 #
@@ -11,15 +16,15 @@ if [ -z "$PYTHON_VER" ]; then
   exit 1
 fi
 
-#if [ -z "`which unzip`" ]; then
-#  echo "[!] 'unzip' is no present, install it before continuing"
-#  exit 1
-#fi
-#
-#if [ -z "`which cmake`" ]; then
-#  echo "[!] 'cmake' is no present, install it before continuing"
-#  exit 1
-#fi
+if [ -z "`which unzip`" ]; then
+  echo "[!] 'unzip' is no present, install it before continuing"
+  exit 1
+fi
+
+if [ -z "`which cmake`" ]; then
+  echo "[!] 'cmake' is no present, install it before continuing"
+  exit 1
+fi
 
 if [ -z "`which readelf`" ]; then
   echo "[!] 'readelf' is no present, install it before continuing"
@@ -49,28 +54,28 @@ if [ -z "`which virtualenv`" ]; then
 fi
 
 
-if [ "$1" == "--clean" ]; then
-  rm -rf keystone keystone_repo LIEF lief.so r2pipe
-  exit 1
-fi
-
 ###
 ## 1. Instal keystone python module
 #
-#if [ ! -d keystone_repo ]; then
-#  echo "[!] 'keystone' is no present ... installing it now (only on current folder)"
-#
-#  wget https://github.com/keystone-engine/keystone/archive/refs/tags/${KEYSTONE_VER}.zip
-#  unzip ${KEYSTONE_VER}.zip
-#  rm ${KEYSTONE_VER}.zip
-#
-#  mv keystone-${KEYSTONE_VER} keystone_repo
-#  cd keystone_repo/bindings/python
-#
-#  $PYTHON_VER setup.py build
-#  cd ../../..
-#  mv keystone_repo/bindings/python/keystone .
-#fi
+if [ ! -d keystone_repo ]; then
+  echo "[!] 'keystone' is no present ... installing it now (only on current folder)"
+
+  if [ -z "$KEYSTONE_VER" ]; then
+    echo "[!] Before continuing the variable 'KEYSTONE_VER' should be declared (e.g export KEYSTONE_VER=\"0.9.2\") ...quit"
+    exit 1
+  fi
+
+  wget https://github.com/keystone-engine/keystone/archive/refs/tags/${KEYSTONE_VER}.zip
+  unzip ${KEYSTONE_VER}.zip
+  rm ${KEYSTONE_VER}.zip
+
+  mv keystone-${KEYSTONE_VER} keystone_repo
+  cd keystone_repo/bindings/python
+
+  $PYTHON_VER setup.py build
+  cd ../../..
+  mv keystone_repo/bindings/python/keystone .
+fi
 
 
 ###
@@ -99,19 +104,19 @@ fi
 #fi
 
 
-if [ ! -d keystone ]; then
-  echo "[!] 'keystone' is no present ... installing it now (only on current folder)"
-  rm -rf object_virtualenv; mkdir object_virtualenv && virtualenv --python=$PYTHON_VER object_virtualenv &&\
-  source object_virtualenv/bin/activate &&\
-  pip install keystone &&\
-  deactivate
-
-  find -name keystone -type d | while read x; do
-    mv "$x" keystone
-  done
-
-  rm -rf object_virtualenv
-fi
+#if [ ! -d keystone ]; then
+#  echo "[!] 'keystone' is no present ... installing it now (only on current folder)"
+#  rm -rf object_virtualenv; mkdir object_virtualenv && virtualenv --python=$PYTHON_VER object_virtualenv &&\
+#  source object_virtualenv/bin/activate &&\
+#  pip install keystone &&\
+#  deactivate
+#
+#  find -name keystone -type d | while read x; do
+#    mv "$x" keystone
+#  done
+#
+#  rm -rf object_virtualenv
+#fi
 
 if [ ! -f lief.so ]; then
   echo "[!] 'LIEF' is no present ... installing it now (only on current folder)"
