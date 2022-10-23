@@ -13,7 +13,11 @@ def get_binary_name(details) :
     details["qemu_usermode"] = True
     return get_binary_name_qemu(details)
 
-  binary_name = rets.split("\n")[1].split("=")[1].strip().replace("'","").split(" ")[0]
+  index_tmp = 1
+  if "warning: " in rets.split("\n")[index_tmp] :
+      index_tmp = 2
+
+  binary_name = rets.split("\n")[index_tmp].split("=")[1].strip().replace("'","").split(" ")[0]
 
   if binary_name.startswith("-") :
     binary_name = binary_name[1:]
