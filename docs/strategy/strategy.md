@@ -5,9 +5,9 @@ The following doc illustrates the logic behind `hook-got-inline` set of commands
 
 ### Terms
 
-function-hooked : function to be hooked
-function-hooking : new generated code hooking/instrumenting the function-hooked
-shadow memory : new memory region added from gdbleed
+ - function-hooked : function to be hooked
+ - function-hooking : new generated code hooking/instrumenting the function-hooked
+ - shadow memory : new memory region added from gdbleed
 
 
 ### General ideas
@@ -192,26 +192,41 @@ We can't declare variables that will be put on data-type ELF sections, so instea
 
 
 For more information read the following doc:
-  * Declaring static data, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/declare_static_data.c.bleed
-  * Declaring internal functions, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/internal_func.c.bleed
-  * Declaring pre_func, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/readme.c.bleed
+
+ - Declaring static data, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/declare_static_data.c.bleed
+
+ - Declaring internal functions, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/internal_func.c.bleed
+
+ - Declaring pre_func, https://github.com/tin-z/GDBleed/blob/main/example/bleed_example/readme.c.bleed
 
 
+</br>
 
 **Steps during a .c.bleed file parsing**
 
 1. Parse sections, a section does start with `--`
 
+</br>
+
 2. Parse `--declare--` section first. Here we declare variables and functions (externals and locals)
-  - `@@types@@` : define types (TODO, for now declare them using internal functions)
-  - `@@vars@@` : key-value mapping, for now supporting numerical types, `void *` and `char *` also
-  - `@@external-functions@@` : external functions (libc, but not limited to that) which our script depends on
+
+ - `@@types@@` : define types (TODO, for now declare them using internal functions)
+
+ - `@@vars@@` : key-value mapping, for now supporting numerical types, `void *` and `char *` also
+
+ - `@@external-functions@@` : external functions (libc, but not limited to that) which our script depends on
+
+</br>
 
 3. Parse `--code--` section. Here we write down the local functions and the functions pre_func and post_func. Because of some constraints only one type of function would be compiled.
-  - `@@functions@@` : static functions
-  - `@@pre_func@@` : code executed before calling the hooked function
-  - `@@post_func@@` : code executed after the hooked function returns (#TODO)
 
+ - `@@functions@@` : static functions
+
+ - `@@pre_func@@` : code executed before calling the hooked function
+
+ - `@@post_func@@` : code executed after the hooked function returns (#TODO)
+
+</br>
 
 4. `pre_func` notes
  
@@ -236,19 +251,19 @@ void * pre_func(
 ```
 
  - argument of the hooked function meaning:
-   * `__arg1__` : 1st arg
-   * `__arg2__` : 2nd arg
-   * `__arg3__` : 3rd arg
-   * `__arg4__` : 4th arg
-   * `__arg5__` : 5th arg (only available for x86_64 arch) 
-   * `__arg6__` : 6th arg (only available for x86_64 arch)
-   * `__fname_length__`  : name length of the function-hooked 
-   * `__fname__`         : address of the function-hooked name
-   * `__fname_addr__`    : address of the function-hooked function
-   * `__ret_addr__`      : original return address
-   * `__num_arg__`       : the number of arguments given to the hooked function (TODO)
-   * `__sp_arg__`        : stack pointer where the other arguments of the hooked function were saved
-   * `__rets__`          : return value after calling the hooked function (only available in post_func function)
+    * `__arg1__` : 1st arg
+    * `__arg2__` : 2nd arg
+    * `__arg3__` : 3rd arg
+    * `__arg4__` : 4th arg
+    * `__arg5__` : 5th arg (only available for x86_64 arch) 
+    * `__arg6__` : 6th arg (only available for x86_64 arch)
+    * `__fname_length__`  : name length of the function-hooked 
+    * `__fname__`         : address of the function-hooked name
+    * `__fname_addr__`    : address of the function-hooked function
+    * `__ret_addr__`      : original return address
+    * `__num_arg__`       : the number of arguments given to the hooked function (TODO)
+    * `__sp_arg__`        : stack pointer where the other arguments of the hooked function were saved
+    * `__rets__`          : return value after calling the hooked function (only available in post_func function)
 
 
 

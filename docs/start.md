@@ -4,14 +4,14 @@
  - [video](./)
 
 
-1. Delete old gdbleed session which is saved into folder `/tmp/gdbleed`
+ 1. Delete old gdbleed session which is saved into folder `/tmp/gdbleed`
 
 ```
 rm -rf /tmp/gdbleed
 ```
 
 
-2. Attach gdb to gdbserver session
+ 2. Attach gdb to gdbserver session
 
 ```
 # e.g. we have /bin/bash with pid 258475, then we launch gdbserver as follows
@@ -24,14 +24,14 @@ gdb /bin/bash -ex "source ~/.gdbinit-gef.py" -ex "target remote 127.0.0.1:12345"
 ```
 
 
-3. Because gdbleed does not know if the debuggee program is running in local or in remote it will ask you to choose on which path the binary is present. In any case if we are using gdbserver the 2nd options should be choosed. This information is later saved in gdbleed session (folder `/tmp/gdbleed`)
+ 3. Because gdbleed does not know if the debuggee program is running in local or in remote it will ask you to choose on which path the binary is present. In any case if we are using gdbserver the 2nd options should be choosed. This information is later saved in gdbleed session (folder `/tmp/gdbleed`)
 
 
 ![t1.jpg](./img/start/t1.jpg)
 
 
 
-4. Inspect got entries 
+ 4. Inspect got entries 
 ```
 gef➤  got-entries
 ...
@@ -43,7 +43,7 @@ gef➤  got-entries fork
 ```
 
 
-5. Create static variables
+ 5. Create static variables
 
 ```
 gef➤  hook-got-inline --help
@@ -89,7 +89,7 @@ Id              declaration
 
 ```
 
-6. Create internal functions
+ 6. Create internal functions
 
 ```
 gef➤  hook-got-inline --create ./example/bleed_example/internal_func.c.bleed
@@ -159,7 +159,7 @@ char * pino = 0x25001f; // size=0xd
 ```
 
 
-7. Create pre_func which does call static variables and internal functions declared before
+ 7. Create pre_func which does call static variables and internal functions declared before
 
 ```
 gef➤  hook-got-inline --create ./example/bleed_example/inspect_status[x86_64].c.bleed
@@ -189,7 +189,7 @@ return 0;
 ```
 
 
-8. Compile it and then hook 'fork' calls
+ 8. Compile it and then hook 'fork' calls
 
 ```
 gef➤  hook-got-inline --compile inspect_status.pre_func
@@ -215,7 +215,7 @@ Result:
 
 
 
-9. Trace each external call passing from plt.got section
+ 9. Trace each external call passing from plt.got section
 
 ```
 gef➤  hook-got-inline --inject --trace-all inspect_status.pre_func
