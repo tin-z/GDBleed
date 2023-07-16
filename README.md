@@ -76,9 +76,9 @@ sudo apt-get -y install unzip cmake binutils
 export PYTHON_VER="python3"
 sudo apt-get install ${PYTHON_VER}-distutils ${PYTHON_VER}-setuptools
 
-# don't change these values
+# Choose module versions (i suggest not changing the major number version)
 export KEYSTONE_VER="0.9.2"
-export LIEF_VER="0.12.1"
+export LIEF_VER="0.12.3"
 ```
 
  - From current folder run:

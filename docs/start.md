@@ -74,18 +74,28 @@ Usage: hook-got-inline [options] <function_name>
 ```
 
 ```
-gef➤  hook-got-inline --data --create
+gef➤  hook-got-inline --data --create 
 Insert gdbleed script (Insert 'EOF' line to terminate reading input)
 int x = 10;
 char * pino = "Hello pino\n";
 blob data1 = 128;
 EOF
 
+
+gef➤  hook-got-inline --data --create ./example/bleed_example/declare_static_data.c.bleed
+Var 'x' already defined
+Usage: hook-got-inline --data [--list <var_name>|--create]
+    --help              : this message
+    --list              : list global vars
+    --create            : create new global vars
+    <var_name>          : list only variable <var_name>
+
+
 gef➤  hook-got-inline --data --list
-Id              declaration
-0               int x = 10;
-1               char * pino = 0x25001f; // size=0xd
-2               void * data1 = 0x25002b; // size=0x80
+Id              declaration     
+0               int * x = 0x25001f; // (initially declared value was: 10)
+1               char * pino = 0x250023; // size=0xd
+2               void * data1 = 0x25002f; // size=0x80
 
 ```
 

@@ -1,4 +1,6 @@
 from ast import literal_eval
+import re
+from struct import pack
 
 from core.parser._exception import ParserException, WrongDeclarationParser
 from core.parser._constants import *
@@ -6,7 +8,7 @@ from core.parser._constants import *
 
 
 class FactoryTypes :
-  def __init__(self) :
+  def __init__(self, mode_64bit=False, mode_lsb=False) :
     self.map = {
       "char" : TypeByte_s ,\
       "short" : TypeShort_s ,\
@@ -25,6 +27,8 @@ class FactoryTypes :
       "function_call" : TypeFunctionCall ,\
       "return" : TypeFunctionReturn
     }
+    self.system_is64bit = mode_64bit
+    self.is_little_endian = mode_lsb
 
   def factory(self, var_type, var_name, var_value=None, line_num=0, line=0, extra={}) :
     #hack
@@ -58,7 +62,15 @@ class FactoryTypes :
         return tmp_obj
 
       else :
-        return self.map[var_type](var_name, var_value, line_num, line)
+        return \
+          self.map[var_type](
+            var_name, 
+            var_value, 
+            line_num, 
+            line, 
+            system_is64bit=self.system_is64bit,
+            is_little_endian=self.is_little_endian,
+          )
 
     else :
       func_object = var_name
@@ -67,6 +79,19 @@ class FactoryTypes :
       assign_to = extra["assign_to"]
       return TypeFunctionCall(func_object, num_arguments, line_num, line, arguments, assign_to)
 
+
+###
+## Types
+#
+
+class TypeFunctionReturn :
+
+  def __init__(self, line_num, line) :
+    self.line_num       = line_num
+    self.line           = line
+
+  def __str__(self) :
+    return self.line
 
 
 class TypeFunctionCall :
@@ -85,22 +110,11 @@ class TypeFunctionCall :
     return self.line
 
 
-class TypeFunctionReturn :
-
-  def __init__(self, line_num, line) :
-    self.line_num       = line_num
-    self.line           = line
-
-  def __str__(self) :
-    return self.line
-
-
-
 class TypeExtFunction :
 
   decl = [ "void * (*{})()", "void * (*{})(void *)", "void * (*{})(void *, ...)" ]
 
-  def __init__(self, func_name, num_of_args, line_num, line, addr=None) :
+  def __init__(self, func_name, num_of_args, line_num, line, addr=None, **kwargs) :
     if num_of_args < 0 or num_of_args > 2 :
       raise WrongDeclarationParser("Invalid 'num_of_args' argument (valid range [0..2])", line_num, line)
 
@@ -145,7 +159,7 @@ class TypeInternalFunction :
 
 
 class TypeBase :
-  def __init__(self, var_type, var_name, var_value, line_num, line, size=None, addr=None) :
+  def __init__(self, var_type, var_name, var_value, line_num, line, size=None, addr=None, **kwargs) :
     self.var_type = var_type
     self.var_name = var_name
     self.var_value = var_value
@@ -153,23 +167,84 @@ class TypeBase :
     self.line = line
     self.size = size
     self.addr = addr
+    self.is_lsb = kwargs.get("is_little_endian", False)
 
   def addr_is_none(self) :
     return not self.addr
 
   def __str__(self):
-    return self.line
+    if self.is_internal() :
+      line_tmp = self.line.split(";")
+      comment = ";".join(line_tmp[1:])
+      decl = line_tmp[0]
+
+      if "=" in decl :
+        decl_tmp = decl.split("=")
+        decl = decl_tmp[0].strip()
+
+
+      addr = self.addr if self.addr != None else 0
+      decl_tmp = decl.split(" ")
+      decl_new = " ".join(decl_tmp[:-1]) + f" * {decl_tmp[-1]} = {hex(addr)}"
+
+      value = self.get_value()
+      if comment.strip() == "" :
+        comment = "//"
+
+      return f"{decl_new}; {comment} (initially declared value was: {value})"
+
+    else :
+      return self.line
+
+
+  def get_value(self):
+    ret = 0
+    line_tmp = self.line.split(";")
+    decl = line_tmp[0]
+
+    if "=" in decl :
+      decl_tmp = decl.split("=")
+      value = decl_tmp[1].strip()
+
+      if value.startswith("0x") :
+        ret = int(value,16)
+
+      elif re.match("^[0-9]", value) :
+        ret = int(value)
+
+      else :
+        ret = None
+
+    return ret
+
+
+  def get_value_C(self):
+    """
+      #TODO: add float type support
+    """
+    head = "<" if self.is_lsb else ">"
+    map_size = {8:"c", 16:"h", 32:"i", 64:"q"}
+    map_size_unsigned = {8:"c", 16:"H", 32:"I", 64:"Q"}
+    head += map_size[self.size] if self.is_signed() else map_size_unsigned[self.size]
+    value = self.get_value()
+    return pack(head, value)
+
+
+  def is_signed(self):
+    if hasattr(self, "signed") :
+      return self.signed
+    return False
+
 
   def is_internal(self):
-    if "internal" in dir(self) :
+    if hasattr(self, "internal") :
       return self.internal
-    else :
-      return False
+    return False
 
 
 class TypeNumerical(TypeBase) :
 
-  def __init__(self, var_type, var_name, var_value, line_num, line, size=None, addr=None, signed=False) :
+  def __init__(self, var_type, var_name, var_value, line_num, line, size=None, addr=None, signed=False, **kwargs) :
     self.size = size
     self.signed = signed
     try :
@@ -186,7 +261,7 @@ class TypeNumerical(TypeBase) :
     except :
       raise WrongDeclarationParser("Invalid {} Numerical variable size/check".format(types_list[var_type]), line_num, line)
 
-    super(TypeNumerical, self).__init__(var_type, var_name, var_value, line_num, line, size, addr)
+    super(TypeNumerical, self).__init__(var_type, var_name, var_value, line_num, line, size, addr, **kwargs)
 
   def check_number(self, var_value):
     if self.signed :
@@ -209,67 +284,71 @@ class TypeNumerical(TypeBase) :
 
 
 class TypeByte (TypeNumerical) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, **kwargs) :
     var_type=t_BYTE
     size = default_types_size[var_type][0]
-    super(TypeByte, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed)
+    super(TypeByte, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
 
 class TypeByte_s (TypeByte) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
     var_type=t_BYTE
     size = default_types_size[var_type][0]
     signed = True
-    super(TypeByte_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed)
+    super(TypeByte_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
 
 class TypeShort (TypeNumerical) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, **kwargs) :
     var_type=t_SHORT
     size = default_types_size[var_type][0]
-    super(TypeShort, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed)
+    super(TypeShort, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
 
 class TypeShort_s (TypeShort) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
     var_type=t_SHORT
     size = default_types_size[var_type][0]
     signed = True
-    super(TypeShort_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed)
+    super(TypeShort_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
 
 class TypeInt (TypeNumerical) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, **kwargs) :
     var_type=t_INT
     size = default_types_size[var_type][0]
-    super(TypeInt, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed)
+    super(TypeInt, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
 
 class TypeInt_s (TypeInt) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
     var_type=t_INT
     size = default_types_size[var_type][0]
     signed = True
-    super(TypeInt_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed)
+    super(TypeInt_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
 
 class TypeLong (TypeNumerical) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, **kwargs) :
     var_type=t_LONG
     size = default_types_size[var_type][0]
-    super(TypeLong, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed)
+    super(TypeLong, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
 
 class TypeLong_s (TypeLong) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
     var_type=t_LONG
     size = default_types_size[var_type][0]
     signed = True
-    super(TypeLong_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed)
+    super(TypeLong_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
 
 class TypePointer (TypeNumerical) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, internal=False) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, internal=False, **kwargs) :
     var_type=t_POINTER
     size = default_types_size[var_type][0]
+
+    if (not kwargs.get("system_is64bit", False)) and size == 64 :
+      size = 32
+
     self.internal = internal
-    super(TypePointer, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed)
+    super(TypePointer, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
 
   def set_blob(self, size):
     base = 16 if size.startswith("0x") else 10
@@ -289,7 +368,13 @@ class TypePointer (TypeNumerical) :
 
 
 class TypeString (TypeBase) :
-  def __init__(self, var_name, var_value, line_num, line, addr=None, append_null=True) :
+  """
+    Notes:
+      - self.size here refers to number of bytes instead of bit
+      - instead in blob type we have self.size_ref_to pointing to the bytes counter
+  """
+
+  def __init__(self, var_name, var_value, line_num, line, addr=None, append_null=True, **kwargs) :
     if not ( var_value.startswith("\"") and var_value.endswith("\"") ) :
       raise WrongDeclarationParser("Invalid STRING variable declaration", line_num, line)
     var_value = literal_eval(var_value)
@@ -297,7 +382,7 @@ class TypeString (TypeBase) :
       var_value += "\0"
     var_type= t_STRING
     size = len(var_value) + 1
-    super(TypeString, self).__init__(var_type, var_name, var_value, line_num, line, size=size, addr=addr)
+    super(TypeString, self).__init__(var_type, var_name, var_value, line_num, line, size=size, addr=addr, **kwargs)
 
   def __str__(self):
     output = "char * {} = 0x{:x};".format(self.var_name, self.addr)

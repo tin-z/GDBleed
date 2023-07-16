@@ -1,7 +1,7 @@
 
 
 // support:
-//  - basic numerical types (char, int, long, ..)
+//  - basic numerical types (char, int, long, ..), note they will be treated as pointers
 //  - char *
 //  - blob of bytes located somewhere 
 

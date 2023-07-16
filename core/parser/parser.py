@@ -5,6 +5,9 @@ from core.parser._exception import ParserException, WrongDeclarationParser
 from core.parser.parse_file import parse_blade
 from core.parser.objects import FactoryTypes
 
+from core.constants import  LITTLE_ENDIAN ,\
+                            BIG_ENDIAN
+
 from core.parser._constants import  re_match_declare ,\
                                     re_match_create_struct, re_match_comment,\
                                     re_match_unsigned_declare, re_match_string_declare,\
@@ -35,7 +38,10 @@ class Parser :
     self.details = details
     self.details_mem = details_mem
     self.details_data = details_data
-    self.fy = FactoryTypes()
+    self.fy = FactoryTypes(
+      mode_64bit = self.details['capsize'] == 8, 
+      mode_lsb = self.details['endian'] == LITTLE_ENDIAN
+    )
     self.reset()
 
   
@@ -387,7 +393,6 @@ class Parser :
 
   def invoke(self, file_path=None, is_data=False) :
 
-    output = []
 
     if not file_path :
       self.details["slog"].append(
@@ -395,6 +400,7 @@ class Parser :
       )
 
       rets = ""
+      output = []
       while True :
         rets = input().strip()
         if rets == "EOF" :
@@ -403,7 +409,7 @@ class Parser :
 
     else :
       fp = open(file_path, "r")
-      output += fp.read().split("\n")
+      output = fp.read().split("\n")
 
     try :
       if not is_data :
@@ -413,6 +419,9 @@ class Parser :
 
       else :
         #
+        # skip comments '//'
+        output = [ x for x in output if x.strip() != "" and not x.strip().startswith("//") ]
+
         class FakeObj_tmp:
           def __init__(self, data, start_line_number=0):
             self.data = ["ignore"] + data

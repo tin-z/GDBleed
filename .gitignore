@@ -11,3 +11,5 @@ log_exec.txt
 r2pipe
 site/
 site.zip
+*.pyc
+*.swp

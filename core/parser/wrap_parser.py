@@ -133,12 +133,24 @@ class WrapParser :
               addr = hook.inject_data(arg.size_ref_to * "\x00")
               arg.addr = addr
 
+            elif arg.addr == None :
+              addr = hook.inject_data((arg.size // 8) * "\x00")
+              arg.addr = addr
+
+          elif arg.addr == None :
+            addr = hook.inject_data((arg.get_value_C()))
+            arg.addr = addr
+            arg.internal = True
+
+
         if is_internal and not is_data:
           if not (isinstance(arg, obj_parser.TypeString) or \
             isinstance(arg, obj_parser.TypePointer)):
-            raise Exception(
-              "Variable type of '{}' not supported in internal functions".format(var_name)
-            )
+              #raise Exception(
+              #  "Variable type of '{}' not supported in internal functions".format(var_name)
+              #)
+              #
+              pass
 
 
   def make_order_to_compile_internal_func(self):

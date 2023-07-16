@@ -15,6 +15,9 @@
   char * p = "Inject this. arg1:%d\n";
   char * p2 = "PID: %d\n";
   __static__ pino;
+
+  // because 'x' was declared as global/static data, then here 'x' will be declared as a pointer, in this case as 'int *'
+  __static__ x;
   
 
 @@external-functions@@
@@ -52,7 +55,7 @@ int print_pino(int i)
     printf(pino);
   }
 
-  return 0;
+  return *x;
 }
 
 #+function:

@@ -122,7 +122,7 @@ if [ ! -f lief.so ]; then
   echo "[!] 'LIEF' is no present ... installing it now (only on current folder)"
   rm -rf object_virtualenv; mkdir object_virtualenv && virtualenv --python=$PYTHON_VER object_virtualenv &&\
   source object_virtualenv/bin/activate &&\
-  pip install lief &&\
+  pip install lief==${LIEF_VER} &&\
   deactivate
 
   find -name "lief*.so" -type f | while read x; do
@@ -145,6 +145,14 @@ if [ ! -d r2pipe ]; then
 
   rm -rf object_virtualenv
 fi
+
+
+echo "[+] All requirements are met"
+echo ""
+echo "Now we need to declare env 'GDBLEED_HOME', you can do it like so:"
+echo "echo \"export GDBLEED_HOME=$PWD\" >> ~/.bashrc"
+echo "export GDBLEED_HOME=$PWD"
+
 
 echo "[+] Done!"
 

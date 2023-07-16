@@ -32,6 +32,12 @@ import os
 from os.path import exists
 from os import listdir, mkdir
 
+
+g_home = os.getenv("GDBLEED_HOME")
+if not g_home :
+  raise Exception("GDBLEED_HOME env not defined ...quit")
+
+os.chdir(g_home)
 sys.path.append(".")
 
 
