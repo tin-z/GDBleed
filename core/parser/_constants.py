@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-types_list = ["t_FUNC", "t_BYTE", "t_SHORT", "t_INT", "t_LONG", "t_POINTER", "t_STRING", "t_STRUCT"]
+types_list = ["t_FUNC", "t_BYTE", "t_SHORT", "t_INT", "t_LONG", "t_LONG_2", "t_POINTER", "t_STRING", "t_STRUCT"]
 types_dict = { i:x for i,x in enumerate(types_list) }
 
 for i,x in enumerate(types_list) :
@@ -21,6 +21,7 @@ default_types_size = {
   t_SHORT : default_size["w"] ,\
   t_INT : default_size["dw"] ,\
   t_LONG : default_size["dw"] ,\
+  t_LONG_2 : default_size["qw"] ,\
   t_POINTER : default_size["qw"] ,\
 }
 
@@ -29,8 +30,13 @@ default_types_size = {
 ########################################
 ### parse sections .bleed script
 ## Match declaration
-re_match_declare = r"^[ ]*([A-z][A-z0-9]*)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
+re_match_declare        = r"^[ ]*([A-z][A-z0-9]*)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
 re_match_declare_global = r"^[ ]*__static__[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
+
+
+### particular types
+re_match_long_long          = r"^[ ]*(long[ ]+long)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
+re_match_long_long_unsigned = r"^[ ]*(unsigned[ ]+long[ ]+long)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
 
 re_match_unsigned_declare = r"^[ ]*(unsigned[ ]+[A-z][A-z0-9]*)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"
 re_match_string_declare = r"^[ ]*(char \*)[ ]+([A-z_][A-z0-9_]*)[ ]*[=]*[ ]*(.*);$"

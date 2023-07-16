@@ -14,10 +14,12 @@ class FactoryTypes :
       "short" : TypeShort_s ,\
       "int" : TypeInt_s ,\
       "long" : TypeLong_s ,\
+      "long long" : TypeLongLong_s ,\
       "unsigned char" : TypeByte ,\
       "unsigned short" : TypeShort ,\
       "unsigned int" : TypeInt ,\
       "unsigned long" : TypeLong ,\
+      "unsigned long long" : TypeLongLong ,\
       "char *" : TypeString ,\
       "void *" : TypePointer ,\
       "blob" : TypePointer ,\
@@ -291,8 +293,6 @@ class TypeByte (TypeNumerical) :
 
 class TypeByte_s (TypeByte) :
   def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
-    var_type=t_BYTE
-    size = default_types_size[var_type][0]
     signed = True
     super(TypeByte_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
@@ -305,8 +305,6 @@ class TypeShort (TypeNumerical) :
 
 class TypeShort_s (TypeShort) :
   def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
-    var_type=t_SHORT
-    size = default_types_size[var_type][0]
     signed = True
     super(TypeShort_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
@@ -319,8 +317,6 @@ class TypeInt (TypeNumerical) :
 
 class TypeInt_s (TypeInt) :
   def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
-    var_type=t_INT
-    size = default_types_size[var_type][0]
     signed = True
     super(TypeInt_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
@@ -333,10 +329,22 @@ class TypeLong (TypeNumerical) :
 
 class TypeLong_s (TypeLong) :
   def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
-    var_type=t_LONG
-    size = default_types_size[var_type][0]
     signed = True
     super(TypeLong_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
+
+
+class TypeLongLong (TypeNumerical) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, signed=False, **kwargs) :
+    var_type=t_LONG_2
+    size = default_types_size[var_type][0]
+    if (not kwargs.get("system_is64bit", False)) and size == 64 :
+      size = 32
+    super(TypeLongLong, self).__init__(var_type, var_name, var_value, line_num, line, addr=addr, size=size, signed=signed, **kwargs)
+
+class TypeLongLong_s (TypeLongLong) :
+  def __init__(self, var_name, var_value, line_num, line, addr=None, **kwargs) :
+    signed = True
+    super(TypeLongLong_s, self).__init__(var_name, var_value, line_num, line, addr=addr, signed=signed, **kwargs)
 
 
 class TypePointer (TypeNumerical) :

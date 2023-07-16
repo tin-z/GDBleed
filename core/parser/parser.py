@@ -18,6 +18,8 @@ from core.parser._constants import  re_match_declare ,\
                                     re_match_pointer_declare ,\
                                     re_match_internal_func_decl ,\
                                     re_match_function_return ,\
+                                    re_match_long_long ,\
+                                    re_match_long_long_unsigned ,\
                                     special_symbols ,\
                                     PRE_FUNC , POST_FUNC , INTERNAL_FUNC
 
@@ -87,6 +89,8 @@ class Parser :
 
   def parse_declaration(self):
     for match_now in [
+        re_match_long_long_unsigned ,\
+        re_match_long_long ,\
         re_match_unsigned_declare,\
         re_match_declare,\
         re_match_string_declare,\
@@ -420,7 +424,7 @@ class Parser :
       else :
         #
         # skip comments '//'
-        output = [ x for x in output if x.strip() != "" and not x.strip().startswith("//") ]
+        output = [ x.strip() for x in output if x.strip() != "" and not x.strip().startswith("//") ]
 
         class FakeObj_tmp:
           def __init__(self, data, start_line_number=0):
