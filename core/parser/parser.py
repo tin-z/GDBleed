@@ -397,7 +397,6 @@ class Parser :
 
   def invoke(self, file_path=None, is_data=False) :
 
-
     if not file_path :
       self.details["slog"].append(
         "Insert gdbleed script (Insert 'EOF' line to terminate reading input)"

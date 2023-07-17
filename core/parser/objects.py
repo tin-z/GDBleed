@@ -225,8 +225,8 @@ class TypeBase :
       #TODO: add float type support
     """
     head = "<" if self.is_lsb else ">"
-    map_size = {8:"c", 16:"h", 32:"i", 64:"q"}
-    map_size_unsigned = {8:"c", 16:"H", 32:"I", 64:"Q"}
+    map_size = {8:"b", 16:"h", 32:"i", 64:"q"}
+    map_size_unsigned = {8:"B", 16:"H", 32:"I", 64:"Q"}
     head += map_size[self.size] if self.is_signed() else map_size_unsigned[self.size]
     value = self.get_value()
     return pack(head, value)
