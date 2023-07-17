@@ -1,0 +1,58 @@
+
+
+// support:
+//  - basic numerical types (char, int, long, ..)
+//  - char *
+//  - blob of bytes located somewhere 
+
+
+// dewfault values
+
+// 1. This value serves to know if agent and so shared memory were already initialized
+unsigned char gdbcov_init = 0;
+
+// 2. shared memory key, pointing to the status + code coverage map shared memory address
+unsigned short gdbcov_shmem_key = 0x7331;
+int gdbcov_shmem_id = 0;
+
+// 0666 
+int gdbcov_shmem_flg = 438;
+
+
+// 3. First byte of shared memory is reserved, next to that we have 64-bit for the previous address/basic block visited
+// then there's the map coverage, which is indexed by an offset representing process address space (.text) without the base address.
+// Each element of the map coverage can be 0 or 1, or more, which they mean:
+//  0     --> address not traced
+//  1     --> address should be traced
+//  2..15 --> address hitted 'x-1' times, if the counter is 15 it means address was hit 14+ times
+
+unsigned int gdbcov_shmem_size = 0x30000 ;
+
+// 4. Defines the size of each entry of the map coverage, default is 2^(8 * gdbcov_shmem_size_entry)
+// Right now is not used, but in future we might need this because of the limitations on the cod coverage counter
+unsigned short gdbcov_shmem_size_entry = 0x1;
+
+// 5. base address of process .text
+unsigned long long gdbcov_base_address = 0x0;
+
+// 6. pid of the agent and the main process
+unsigned int gdbcov_pidagent = 0x0;
+unsigned int gdbcov_pidmain = 0x0;
+
+// 7. address-port agent listening to 
+unsigned short gdbcov_agent_port = 3134;
+unsigned int gdbcov_agent_ip = 0;
+
+// 8. address-port server collecting coverages from agent listening to
+unsigned short gdbcov_server_port = 4313;
+unsigned int gdbcov_server_ip = 0;
+
+// 9. keep track of agent errors
+unsigned short gdbcov_agent_error = 0;
+
+// 10. time (seconds) after agent sends coverage to server
+unsigned short gdbcov_agent_timeout = 3;
+
+
+
+

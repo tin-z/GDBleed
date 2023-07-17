@@ -1,0 +1,105 @@
+--skip--
+
+#+Function_name: gdbcov 
+#+Description: Initialize gdb coverage datas
+
+
+
+--declare--
+
+@@types@@
+  // Ignore section for internal functions
+  
+@@vars@@
+  // Here we declare only static vars and strings
+
+  __static__ gdbcov_init;
+  __static__ gdbcov_shmem_key;
+  __static__ gdbcov_shmem_id;
+  __static__ gdbcov_shmem_flg;
+  __static__ gdbcov_shmem_size;
+  __static__ gdbcov_base_address;
+
+  __static__ gdbcov_pidagent;
+  __static__ gdbcov_pidmain;
+
+  char * err1 = "Error during shmget on key %d\n";
+  char * msg1 = "Agent spawned\n";
+  char * msg2 = "Main finishing gdbcov_setup's init routine\n";
+  char * msg3 = "Return address given: %p\n";
+  char * msg4 = "Main exiting gdbcov_setup\n";
+
+
+@@external-functions@@
+
+  shmget(2);
+  printf(2);
+  exit(1);
+  getpid(0);
+  fork(0);
+  sleep(1);
+
+
+--code--
+
+@@function@@
+
+
+#+define:
+// here we insert includes and struct typedf etc.
+//  - we can have only one "define" sub-section
+#include <unistd.h>
+
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+
+
+#+function:
+
+
+int gdbcov_setup(unsigned long long ret_addr) {
+
+  int shmid;
+
+  if (! *gdbcov_init ) {
+
+    shmid = shmget(*gdbcov_shmem_key, *gdbcov_shmem_size, IPC_CREAT | *gdbcov_shmem_flg );
+    if (shmid < 0) {
+        printf(err1, *gdbcov_shmem_key);
+        exit(1);
+    }
+
+    *gdbcov_shmem_id = shmid;
+
+    *gdbcov_pidmain = getpid();
+    *gdbcov_init = 1;
+
+    *gdbcov_pidagent = fork();
+    if ( *gdbcov_pidagent == 0) {
+        sleep(2);
+        printf(msg1);
+        exit(0);
+    }
+    
+    wait(NULL);
+    printf(msg2);
+
+  }
+
+  printf(msg3, ret_addr);
+
+  unsigned long long offset_ret_addr = ret_addr - *gdbcov_base_address;
+  printf(msg4);
+
+  return 0;
+}
+
+
+
+@@post_func@@
+  // Ignore section for internal functions
+
+@@pre_func@@
+  // Ignore section for internal functions
+

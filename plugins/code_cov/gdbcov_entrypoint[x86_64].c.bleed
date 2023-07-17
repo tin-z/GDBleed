@@ -1,0 +1,36 @@
+--skip--
+
+#+Function_name: gdbcov 
+#+Description: GDBCov entry point
+
+
+
+--declare--
+  // here we declare stuff
+
+@@types@@
+  // todo: structs, enums and types must be defined here
+  
+@@vars@@
+
+
+@@external-functions@@
+
+  __static__ gdbcov.gdbcov_setup(1);
+
+
+--code--
+
+@@function@@
+
+@@post_func@@
+
+@@pre_func@@
+
+  //
+
+  gdbcov_setup(__ret_addr__);
+
+  return 1111;
+
+
