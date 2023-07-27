@@ -32,8 +32,24 @@ arm_convention = {
         "ret"       : ["$r14","@@ $r13+"]
 }
 
-archs = { "mips":mips_convetion, "x86-64":x86_64_convention, "arm":arm_convention }
+ppc_convention = {
+        "args"      : ["$r3", "$r4", "$r5", "$r6", "$r7", "$r8", "$r9", "$r10", "@@ $r1+"] ,\
+        "ret_val"   : ["$r3", "$r4"] ,\
+        "ret"       : ["$lr", "$ctr", "@@ $r1+"]
+}
 
+
+
+archs = { 
+  "mips"    : mips_convetion ,\
+  "x86-64"  : x86_64_convention ,\
+  "arm"     : arm_convention ,\
+  "powerpc" : ppc_convention ,\
+}
+
+
+
+## Notes:
 
 """
 Number          Name            Purpose
@@ -69,6 +85,57 @@ $s0-$s7 $ra (in our case we'll save also $ra)
 # - https://www.ele.uva.es/~jesus/hardware_empotrado/ARM_calling.pdf
 # - https://azeria-labs.com/arm-data-types-and-registers-part-2/
 """
+
+
+## ppc notes
+# arrivato a sezione "The Stack Frame" di https://web.archive.org/web/20101223125240/http://refspecs.freestandards.org/elf/elfspec_ppc.pdf
+#  - https://jimkatz.github.io/powerpc_for_dummies
+"""
+The PowerPC Architecture provides 32 general purpose registers, each 32 bits wide. 
+In addition, the architecture provides 32 floating-point registers, each 64 bits wide, and several special purpose registers. 
+ - All of the integer, special purpose, and floating-point registers are global to all functions in a running program. 
+ - Registers r0, r3 through r12, f0 through f13, and the special purpose registers CTR and XER are volatile.
+ - Register r2 is reserved for system use and should not be changed by application code
+ - Register r13 is the small data area pointer... 16-bit offset relative address to r13 
+ - The stack pointer shall maintain 16-byte alignment.
+ - The first word of the stack frame shall always point to the previously allocated stack frame (toward higher addresses), 
+    * except for the first stack frame, which shall have a back chain of 0 (NULL).
+
+Register Name   Usage
+r0              Volatile register which may be modified during function linkage
+r1              Stack frame pointer, always valid [non-volatile]
+r2              System-reserved register [non-volatile]
+r3-r4           Volatile registers used for parameter passing and return values
+r5-r10          Volatile registers used for parameter passing
+r11-r12         Volatile registers which may be modified during function linkage
+r13             Small data area pointer register [non-volatile]
+r14-r30         Registers used for local variables [non-volatile]
+r31             Used for local variables or "environment pointers" [non-volatile]
+
+f0              Volatile register
+f1              Volatile register used for parameter passing and return values
+f2-f8           Volatile registers used for parameter passing
+f9-f13          Volatile registers
+f14-f31         Registers used for local variables [non-volatile]
+
+CR0-CR7         Condition Register Fields, each 4 bits wide [non-volatile]
+LR              Link Register
+CTR             Count Register
+XER             Fixed-Point Exception Register
+FPSCR           Floating-Point Status and Control Register
+
+## extra ppc ISA notes
+ - copy the contents of the LR to register Rx: mflr Rx (equivalent to: mfspr Rx,8)
+ - Copy the contents of register Rx to the CTR: mtctr Rx (equivalent to: mtspr 9,Rx)
+ - stwu or stu (Store Word with Update): Stores a word of data from a general-purpose register into a specified location in memory and possibly places the address in another general-purpose register.
+
+## ppc ISA
+# - https://web.archive.org/web/20101223125240/http://refspecs.freestandards.org/elf/elfspec_ppc.pdf
+# - https://wiki.raptorcs.com/w/images/f/f1/PowerISA_V2.03_Final_Public.pdf
+# - https://www.ibm.com/docs/en/aix/7.2?topic=set-stwu-stu-store-word-update-instruction
+# - https://web.archive.org/web/20210414024518/http://www.0x04.net/doc/elf/psABI-ppc64.pdf
+"""
+
 
 
 class GDBExceptionBase(Exception) :
@@ -116,6 +183,15 @@ def getarch(details):
       arch = "arm"
       isa = "armv7" if "v7" in info else "arm"
       rets = "arm"
+
+    elif "powerpc" in info :
+      capsize = 4
+      word = "wx "
+      arch = "powerpc"
+      isa = info.split(":")[1].strip()
+      if isa.endswith(")") :
+          isa = isa[:-1]
+      rets = "powerpc"
 
     else :
       raise UnsupportedArch(info)

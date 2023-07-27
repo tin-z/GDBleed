@@ -67,6 +67,11 @@ class HookTrampoline (GeneralHook) :
     code = NOP_ins[self.details["arch"]].encode()
     return self.do_asm(code)
 
+  def powerpc_code(self) :
+    # junk code, to not break the abstract class
+    code = NOP_ins[self.details["arch"]].encode()
+    return self.do_asm(code)
+
 
   def find_function_name_address(self, fname, details_mem) :
     """
@@ -133,6 +138,10 @@ class HookTrampoline (GeneralHook) :
     elif arch == "mips" :
       output.append("li $a0, 0x{:x}".format(self.increment_stack_to * self.details["capsize"]))
       output.append("add $sp, $sp, $a0")
+
+    elif arch == "powerpc" :
+      output.append("addi r1, r1, 0x{:x}".format(self.increment_stack_to * self.details["capsize"]))
+      output = [ HookItAgain.replace_powerpc_regs(x) for x in output ]
 
     else :
       self.details["slog"].append(
@@ -218,6 +227,26 @@ class HookTrampoline (GeneralHook) :
         output.append("lw $t0, {}($t0)".format(x*self.details["capsize"]))
         output.append(push_mips(2-(6-x)))
 
+    elif arch == "powerpc" :
+      to_reg="r14"
+      output.append("addi {}, r1, 0x{:x}".format(to_reg, sp_arg + (1*self.details["capsize"])))
+      output.append("stwu {}, -4(r1)".format(to_reg))
+      #
+      output.append(self.insert_arg_powerpc_inj_addr(stack_addr, to_reg))
+      output.append("lwz {}, {}({})".format(to_reg, 7*self.details["capsize"], to_reg))
+      output.append("stwu {}, -4(r1)".format(to_reg))
+      #
+      output.append("mflr {}".format(to_reg))
+      output.append("stwu {}, -4(r1)".format(to_reg))
+      #
+      for x in range(6,3,-1) :
+        output.append(self.insert_arg_powerpc_inj_addr(stack_addr, to_reg))
+        output.append("lwz {}, {}({})".format(to_reg, x*self.details["capsize"], to_reg))
+        output.append("stwu {}, -4(r1)".format(to_reg))
+      #
+      output = [ HookItAgain.replace_powerpc_regs(x) for x in output ]
+
+
     else :
       self.details["slog"].append(
         "[x] not supported!"
@@ -255,6 +284,14 @@ class HookTrampoline (GeneralHook) :
       output.append("lw {}, {}({})".format(to_reg, index*self.details["capsize"], to_reg))
       output.append("jalr {}".format(to_reg))
 
+    elif arch == "powerpc" :
+      to_reg = "r14"
+      output.append(self.insert_arg_powerpc_inj_addr(stack_addr, to_reg))
+      output.append("lwz {}, {}({})".format(to_reg, index*self.details["capsize"], to_reg))
+      output.append("mtlr {}".format(to_reg))
+      output.append("blr")
+      output = [ HookItAgain.replace_powerpc_regs(x) for x in output ]
+
     else :
       self.details["slog"].append(
         "[x] not supported!"
@@ -289,6 +326,14 @@ class HookTrampoline (GeneralHook) :
       code = self.insert_arg_mips_inj_addr(stack_addr, to_reg)
       code += "; " + "lw {}, {}({})".format(to_reg, 6*self.details["capsize"], to_reg)
       code += "; " + "jr {}".format(to_reg)
+
+    elif self.details["arch"] == "powerpc" :
+      to_reg = "r14"
+      code = self.insert_arg_powerpc_inj_addr(stack_addr, to_reg)
+      code += "; " + "lwz {}, {}({})".format(to_reg, 6*self.details["capsize"], to_reg)
+      code += "; " + "mtctr {}".format(to_reg) 
+      code += "; " + "bctr"
+      code = HookItAgain.replace_powerpc_regs(code)
 
     else :
       raise Exception("[x] Arch '{}' not supported".format(arch))
@@ -396,6 +441,12 @@ class HookTrampoline (GeneralHook) :
       buff += self.do_asm("addiu $sp, $sp, {}".format(-self.details["capsize"]).encode())
       buff += self.do_asm(b"sw $ra, 0($sp)")
 
+    elif arch == "powerpc" :
+      to_reg = "r14"
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("stwu {}, -4(r1)".format(to_reg)))
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("mflr {}".format(to_reg)))
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("stwu {}, -4(r1)".format(to_reg)))
+
     buff += self.inject_new_arguments()
     buff += self.do_call_pre_func()
     buff += self.realign_stack()
@@ -410,6 +461,12 @@ class HookTrampoline (GeneralHook) :
     elif arch == "mips" :
       buff += self.do_asm(b"lw $ra, 0($sp)")
       buff += self.do_asm("addiu $sp, $sp, {}".format(self.details["capsize"]).encode())
+
+    elif arch == "powerpc" :
+      to_reg = "r14"
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("lwzu {}, 4(r1)".format(to_reg)))
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("mtlr {}".format(to_reg)))
+      buff += self.do_asm(HookItAgain.replace_powerpc_regs("lwzu {}, 4(r1)".format(to_reg)))
 
     buff += self.do_return()
 
@@ -505,6 +562,19 @@ class HookTrampoline (GeneralHook) :
       to_reg=special_regs["mips_gp"]
       output.append(self.insert_arg_mips_inj_addr(tramp_addr, to_reg))
       output.append("jr {}".format(to_reg))
+
+    elif arch == "powerpc" :
+      output.append(self.insert_arg_powerpc_inj_addr(stack_addr, "r14"))
+
+      for index,x in args :
+        output.append(self.insert_arg_powerpc_inj_addr(x, "r15"))
+        output.append( 
+          HookItAgain.replace_powerpc_regs("stw r15, {}(r14)".format(hex(index*self.details["capsize"])))
+        )
+
+      output.append(self.insert_arg_powerpc_inj_addr(tramp_addr, "r14"))
+      output.append(HookItAgain.replace_powerpc_regs("mtctr r14"))
+      output.append("bctr ")
 
     else :
       self.details["slog"].append(

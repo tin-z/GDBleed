@@ -5,7 +5,8 @@
 """
 
 import hook
-from hook.default_hooks import GeneralHook
+from hook.default_hooks import GeneralHook, HookItAgain
+
 
 from core.constants import *
 from utils.gdb_utils import search_string
@@ -70,6 +71,19 @@ class HookTrace (GeneralHook) :
     code = code.encode()
     return self.do_asm(code)
 
+  def powerpc_code_write_to_stdout(self, str_value, str_addr) :
+    """
+      powerpc 
+
+      invoke write(stdout, ...)
+    """
+    code = \
+      "li r3, 0x{:x}".format(0) +\
+      "; " + self.insert_arg_powerpc_inj_addr(str_addr, "r4") +\
+      "; " + "li r5, 0x{:x}".format(len(str_value)) +\
+      "; " + self.do_call_powerpc_inj_addr(self.addr)
+    code = HookItAgain.replace_powerpc_regs(code).encode()
+    return self.do_asm(code)
 
   def x86_64_code(self) :
     self.pre_write = self.x86_code_write_to_stdout(self.trace_pre, self.trace_pre_addr)
@@ -78,6 +92,12 @@ class HookTrace (GeneralHook) :
     code = NOP_ins[self.details["arch"]].encode()
     return self.do_asm(code)
 
+  def powerpc_code(self) :
+    self.pre_write = self.powerpc_code_write_to_stdout(self.trace_pre, self.trace_pre_addr)
+    self.post_write = self.powerpc_code_write_to_stdout(self.new_line, self.new_line_addr)
+    # from here it's junk code, we do not want to break the abstract class
+    code = NOP_ins[self.details["arch"]].encode()
+    return self.do_asm(code)
 
   def arm_code(self) :
     self.pre_write = self.arm_code_write_to_stdout(self.trace_pre, self.trace_pre_addr)
@@ -170,6 +190,9 @@ class HookTrace (GeneralHook) :
 
     elif arch == "mips" :
       buff += self.mips_code_write_to_stdout(fname, fname_addr)
+
+    elif arch == "powerpc" :
+      buff += self.powerpc_code_write_to_stdout(fname, fname_addr)
 
     else :
       self.details["slog"].append(

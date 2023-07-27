@@ -95,6 +95,8 @@ special_symbols = [
   "{0}arg4{0}".format(sep_special_char)  ,\
   "{0}arg5{0}".format(sep_special_char)  ,\
   "{0}arg6{0}".format(sep_special_char)  ,\
+  "{0}arg7{0}".format(sep_special_char)  ,\
+  "{0}arg8{0}".format(sep_special_char)  ,\
   # name, name length, address of the hooked function
   "{0}fname_length{0}".format(sep_special_char) ,\
   "{0}fname{0}".format(sep_special_char) ,\
@@ -127,17 +129,19 @@ pre_func_decl += ", ".join("{} {}".format(special_symbols_types[x],x) for x in s
 pre_func_space = " " * 4
 
 pre_func_decl_x86_64 = pre_func_decl 
-pre_func_decl_x86_64 += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[4:-1]) + ")"
+pre_func_decl_x86_64 += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[4:-6]) + ")"
+
+pre_func_decl_powerpc = pre_func_decl_x86_64
+pre_func_decl_powerpc += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[6:-1]) + ")"
+
+
+pre_func_decl_x86_64 += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[8:-1]) + ")"
 
 pre_func_decl += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[6:-1]) + ")"
 
 pre_func_decl += "{"
 pre_func_decl_x86_64 += "{"
-
-
-
-
-
+pre_func_decl_powerpc += "{"
 
 
 

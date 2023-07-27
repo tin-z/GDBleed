@@ -3,7 +3,12 @@ import re
 
 from core.parser.parser import Parser
 from core.parser import objects as obj_parser 
-from core.parser._constants import special_symbols, pre_func_decl, pre_func_decl_x86_64, pre_func_return
+
+from core.parser._constants import  special_symbols ,\
+                                    pre_func_decl ,\
+                                    pre_func_decl_x86_64 ,\
+                                    pre_func_decl_powerpc ,\
+                                    pre_func_return
 
 from core.parser.wrap_objects import *
 
@@ -321,7 +326,14 @@ class WrapParser :
       return self.resolve_internal_func()
 
     if self.parser.func_type & PRE_FUNC :
-      declaration = pre_func_decl_x86_64 if self.details["arch"]  == "x86-64" else pre_func_decl
+
+      declaration = pre_func_decl
+      if self.details["arch"] == "x86-64" :
+        declaration = pre_func_decl_x86_64 
+
+      elif self.details["arch"]  == "powerpc" :
+        declaration = pre_func_decl_powerpc
+
       func_now = self.parser.pre_func
       func_return = pre_func_return
 

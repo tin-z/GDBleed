@@ -93,9 +93,10 @@ def get_base_address(binary_name, binary_name_local, output_dict, details) :
   output = []
   size = 0
   for v in output_dict.values() :
-    if v.name == binary_name or v.name == binary_name_local :
-      output.append(v.addr)
-      size += v.size
+    if v.name == binary_name or v.name == binary_name_local \
+      or v.name.endswith("/{}".format(binary_name)) :
+        output.append(v.addr)
+        size += v.size
   output.sort()
   return (output[0], size) + get_libc_base_address(output_dict, details)
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import keystone
 import hook
+import re
 
 from core.constants import *
 from utils.gdb_utils import find_function_addr, search_string
@@ -14,7 +15,8 @@ class HookItAgain :
   arch_keystone = {
     "arm" : (keystone.KS_ARCH_ARM, keystone.KS_MODE_ARM) ,\
     "x86-64" : (keystone.KS_ARCH_X86, keystone.KS_MODE_64) ,\
-    "mips" : (keystone.KS_ARCH_MIPS, keystone.KS_MODE_MIPS32)
+    "mips" : (keystone.KS_ARCH_MIPS, keystone.KS_MODE_MIPS32) ,\
+    "powerpc" : (keystone.KS_ARCH_PPC, keystone.KS_MODE_PPC32 | keystone.KS_MODE_BIG_ENDIAN) ,\
   }
 
   mips_regs_to_save = \
@@ -28,10 +30,18 @@ class HookItAgain :
     "$ra" 
   ]
 
+  replace_powerpc_regs = lambda x : re.sub("[rR]([0-9])", "\\1", x)
+
   def __init__(self, details) :
     self.details = details
     self.assembler = keystone.Ks(*HookItAgain.arch_keystone[self.details["arch"]])
-    self.inject_arch = {"x86-64":self.x86_64_code, "arm":self.arm_code, "mips":self.mips_code}
+    self.inject_arch = {
+      "x86-64":self.x86_64_code ,\
+      "arm":self.arm_code ,\
+      "mips":self.mips_code ,\
+      "powerpc":self.powerpc_code ,\
+    }
+
     self.inject_code = self.inject_arch[self.details["arch"]]()
 
   def cast_bytes(self, data) :
@@ -52,6 +62,10 @@ class HookItAgain :
 
   def mips_code(self) :
     pass
+
+  def powerpc_code(self) :
+    pass
+
 
 
 class Pre_regs(HookItAgain) :
@@ -98,6 +112,31 @@ class Pre_regs(HookItAgain) :
     code = "; ".join(code).encode()
     return self.do_asm(code)
 
+  def powerpc_code(self) :
+    code = [ \
+      # Allocate space on the stack for the saved registers
+      "stwu r1, -(32 * 4 + 20)(r1)" ,\
+
+      # Save all general-purpose registers (r0-r31) to the stack
+      "stmw r0, 20(r1)"
+
+      # Save the current value of the Link Register (lr) to the stack
+      "mflr r14" ,\
+      "stw r14, 8(r1)" ,\
+
+      # Save the current value of the Counter Register (ctr) to the stack
+      "mfctr r14" ,\
+      "stw r14, 12(r1)" ,\
+      
+      # Save the current value of the Condition Register (cr) to the stack
+      "mfcr r14" ,\
+      "stw r14, 16(r1)" ,\
+    ]
+    self.sp_pivot = 32*4 + 20
+    code = HookItAgain.replace_powerpc_regs("; ".join(code)).encode()
+    return self.do_asm(code)
+
+
 
 class Post_regs(HookItAgain) :
   """
@@ -140,6 +179,31 @@ class Post_regs(HookItAgain) :
     code = "; ".join(code).encode()
     return self.do_asm(code)
 
+  def powerpc_code(self) :
+    code = [
+      # Restore the Condition Register from the stack
+      "lwz r14, 16(r1)" ,\
+      "mtcrf 0xFF, r14" ,\
+      
+      # Restore the Counter Register from the stack
+      "lwz r14, 12(r1)" ,\
+      "mtctr r14" ,\
+      
+      # Restore the Link Register from the stack
+      "lwz r14, 8(r1)" ,\
+      "mtlr r14" ,\
+      
+      # Restore the general-purpose registers from the stack
+      "lmw r0, 20(r1)" ,\
+ 
+      # Deallocate the space on the stack used for the saved registers
+      "lwz r1, 0(r1)"
+    ]
+
+    code = HookItAgain.replace_powerpc_regs("; ".join(code)).encode()
+    return self.do_asm(code)
+
+
 
 class GeneralHook (HookItAgain) :
   """
@@ -181,6 +245,7 @@ class GeneralHook (HookItAgain) :
     code, _ = self.arm_inj_addr(addr, to_reg=register)
     return code
   
+
   def do_call_x86_64(self, addr, to_reg="RAX") :
     """
       x86_64
@@ -287,6 +352,64 @@ class GeneralHook (HookItAgain) :
     code = code[2:] 
     return code, tmp_regs
 
+
+###
+## PowerPC
+#
+  def insert_arg_powerpc_inj_addr(self, addr, register) :
+    code, _ = self.powerpc_inj_addr(addr, to_reg=register)
+    return code
+
+  def do_call_powerpc_inj_addr(self, addr, to_reg="r14") :
+    """
+      powerpc
+
+      Perform call to 'addr' using register 'to_reg'
+    """
+    code, _ = self.powerpc_inj_addr(addr, to_reg=to_reg)
+    # Move the value from r14 into the CTR
+    code += "; " + "mtctr {}".format(to_reg)
+    # Branch and link to the address stored in the CTR
+    code += "; " + "bctrl"
+    code = HookItAgain.replace_powerpc_regs(code)
+    return code
+
+  def do_jmp_powerpc_inj_addr(self, addr, to_reg="r14") :
+    """
+      powerpc
+
+      Perform jmp to 'addr' using register 'to_reg'
+    """
+    code, _ = self.powerpc_inj_addr(addr, to_reg=to_reg)
+    # Move the value from r14 into the CTR
+    code += "; " + "mtctr {}".format(to_reg) 
+    # Branch to the address stored in the CTR
+    code += "; " + "bctr"
+    code = HookItAgain.replace_powerpc_regs(code)
+    return code
+
+  def powerpc_inj_addr(self, addr, to_reg="r14") :
+    """
+      powerpc
+
+      Insert value 'addr' into register 'to_reg'
+
+      Return text code and registers modified
+    """
+    tmp_regs = [to_reg]
+    code = ""
+    code += "; " + "lis {}, 0x{:x}".format(to_reg, addr >> 16)
+    code += "; " + "ori {}, {}, 0x{:x}".format(to_reg, to_reg, (addr & 0xffff))
+    code = HookItAgain.replace_powerpc_regs(code[2:])
+    return code, tmp_regs
+
+
+####################################
+
+  def powerpc_code(self) :
+    code = self.do_call_powerpc_inj_addr(self.addr).encode()
+    return self.do_asm(code)
+
   def mips_code(self) :
     code = self.do_call_mips_inj_addr(self.addr).encode()
     return self.do_asm(code)
@@ -326,6 +449,13 @@ class GeneralHook (HookItAgain) :
         else :
           code += "; li {}, 0x{:x}".format(CALL_CONVENTION[arch][i], v).encode()
 
+    elif arch == "powerpc" :
+      for i,v in enumerate(args) :
+        if v > 0xffff :
+          code += ("; " + self.insert_arg_powerpc_inj_addr(v, CALL_CONVENTION[arch][i])).encode()
+        else :
+          code += HookItAgain.replace_powerpc_regs("; li {}, 0x{:x}".format(CALL_CONVENTION[arch][i], v)).encode()
+
     else :
       raise Exception("[x] Arch '{}' not supported".format(arch))
 
@@ -347,6 +477,9 @@ class GeneralHook (HookItAgain) :
     elif self.details["arch"] == "mips" :
       code = self.do_jmp_mips_inj_addr(jj).encode()
 
+    elif self.details["arch"] == "powerpc" :
+      code = self.do_jmp_powerpc_inj_addr(jj).encode()
+
     else :
       raise Exception("[x] Arch '{}' not supported".format(arch))
 
@@ -365,6 +498,9 @@ class GeneralHook (HookItAgain) :
     elif arch == "mips" :
       output.append("jr $ra")
       output.append(NOP_ins["mips"])
+
+    elif arch == "powerpc" :
+      output.append("blr")
 
     else :
       raise Exception("[x] Arch '{}' not supported".format(arch))

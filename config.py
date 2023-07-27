@@ -24,7 +24,8 @@ BE = BIG_ENDIAN
 compiler_path = {
     "mips" : {LE:"mipsel-linux-gnu-gcc", BE:"mips-linux-gnu-gcc"} ,\
     "x86-64" : {LE:"/usr/bin/gcc", BE:None} ,\
-    "arm": {LE:"/usr/bin/arm-linux-gnueabi-gcc", BE:"/usr/bin/arm-linux-gnueabi-gcc"}
+    "arm": {LE:"/usr/bin/arm-linux-gnueabi-gcc", BE:"/usr/bin/arm-linux-gnueabi-gcc"} ,\
+    "powerpc": {LE:"/usr/bin/powerpc-linux-gnu-gcc", BE:"/usr/bin/powerpc-linux-gnu-gcc"} ,\
 }
 """
 Cross-Compiler paths
@@ -35,17 +36,18 @@ default_flag = dflg = "-g -fPIC -c"
 compiler_flags = {
     "mips" : {LE:dflg, BE:dflg} ,\
     "x86-64" : {LE:dflg, BE:dflg} ,\
-    "arm" : {LE:dflg, BE:dflg}
+    "arm" : {LE:dflg, BE:dflg} ,\
+    "powerpc" : {LE:dflg, BE:dflg} ,\
+
 }
 """
 Cross-Compiler flags
 """
 
 
-ARCH_supported = ["mips", "x86-64", "arm"]
+ARCH_supported = ["mips", "x86-64", "arm", "powerpc"]
 """
 Archs supported
 """
-
 
 
