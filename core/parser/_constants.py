@@ -129,7 +129,7 @@ pre_func_decl += ", ".join("{} {}".format(special_symbols_types[x],x) for x in s
 pre_func_space = " " * 4
 
 pre_func_decl_x86_64 = pre_func_decl 
-pre_func_decl_x86_64 += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[4:-6]) + ")"
+pre_func_decl_x86_64 += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[4:6]) + ")"
 
 pre_func_decl_powerpc = pre_func_decl_x86_64
 pre_func_decl_powerpc += ", " + ", ".join("{} {}".format(special_symbols_types[x],x) for x in special_symbols[6:-1]) + ")"
