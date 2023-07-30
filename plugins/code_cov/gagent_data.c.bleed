@@ -4,6 +4,7 @@
 unsigned char gagent_HANDSHAKE_REQUEST = 0x0;
 unsigned char gagent_HANDSHAKE_ACK = 0x1;
 unsigned char gagent_HANDSHAKE_FAIL = 0x2;
+unsigned char gagent_RESET = 0x4;
 
 
 

@@ -24,6 +24,7 @@ class WrapSection :
         self.section_lief = section_lief 
         self.fname = self.section_lief.name
         self.offset = self.section_lief.offset
+        self.size = self.section_lief.size
         self.address_dyn = self.offset + base_address
 
     def __str__(self):
@@ -62,12 +63,24 @@ def elf_sections(binary_name, binary_name_local, base_address, details) :
     section_entries = dict()
     binary = lief.parse(binary_name_local)
     section_list = binary.sections
+
+    executable_offset = 0
+    executable_size = 0
+
     for x in section_list :
         fname = x.name
         if ".dynstr" == fname :
             y = DynstrSection(x, base_address)
         else :
             y = WrapSection(x, base_address)
+
+        if x.flags & 4 :
+          if not executable_offset :
+            executable_offset = x.offset
+          else :
+            executable_size += x.size
+
         section_entries.update({fname:y})
-    return section_entries
+    return executable_offset, executable_size, section_entries
+
 

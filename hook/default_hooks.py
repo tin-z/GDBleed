@@ -86,6 +86,7 @@ class Pre_regs(HookItAgain) :
     code = b"STMDB SP!, {R0,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,LR}"
     self.sp_pivot = len(code.split(b",")[1:]) + 1
     code += b"; " + b"PUSH {R12}"
+    # TODO: aggiungere push di CPSR, e.g MRS R0, CPSR poi push ...
     return self.do_asm(code)
 
   def mips_code(self) :

@@ -281,7 +281,6 @@ class HookGOTInline(MemCommand):
         Options:
             --help              : This message
             --create            : insert gdbleed script from STDIN or by file <file_path>
-            --data              : Define or list global/static vars
             --list              : print declared functions nformation
             --source-code       : print function's source code
             --remove            : delete function <function_name>
@@ -292,6 +291,8 @@ class HookGOTInline(MemCommand):
             --inject-post-ret   : inject-post-ret mode
             --inject-full       : inject-full mode
 
+            --data              : Define or list global/static vars menu
+            --gdbcov            : gdbcov menu
     """
     argv = [x.strip() for x in argv.split(" ") if x.strip() != "" ]
     arg0 = argv[0]
@@ -334,6 +335,9 @@ class HookGOTInline(MemCommand):
       elif "--compile" == arg0 :
         return self.do_compile(argv[1:])
 
+      elif "--gdbcov" == arg0 :
+        return self.do_gdbcov(argv[1:])
+
       else :
         raise Exception("Invalid argument given '{}'".format(argv))
 
@@ -355,6 +359,8 @@ class HookGOTInline(MemCommand):
         "       --inject-post       : inject-post mode\n" +\
         "       --inject-post-ret   : inject-post-ret mode\n" +\
         "       --inject-full       : inject-full mode\n" +\
+        "\n" +\
+        "       --gdbcov            : gdbcov menu\n" +\
         "\n" +\
         " Notes:\n" +\
         "   --inject                : call pre_func, jump to function-hooked\n" +\
@@ -537,6 +543,49 @@ class HookGOTInline(MemCommand):
       )
 
 
+  def do_gdbcov(self, argv) :
+    """
+	    Usage: <cmd-default> --gdbcov [--list|--trace]
+            --help              : this message
+            --list              : list conditional branches
+            --trace             : Trace conditional branches
+    """
+    try : 
+
+      if "--help" in argv[0] :
+        raise Exception("Help invoked")
+
+      elif "--trace" in argv[0] :
+        print("#TODO")
+
+      elif "--list" in argv[0] :
+
+        argv = argv[1:]
+        jump_offset = None if argv == [] else int(argv[0], 16 if argv[0].startswith("0x") else 10)
+
+        conditional_branches = hook.hook_trampoline.disasm.get_conditional_branches(
+          jump_offset = jump_offset
+        )
+
+        print("# Conditional branches:")
+        for branch in conditional_branches :
+          print("{}: {}".format(
+            "0x" + hex(branch.arg_offset).split("0x")[1].rjust(
+              self.details["capsize"] * 2, "0"
+            ) ,\
+            branch.arg_opcode
+          ))
+
+    except Exception as ex :
+      self.details["slog"].append(str(ex))
+      self.details["slog"].append(
+	      "Usage: {} --gdbcov [--list|--trace]\n".format(HookGOTInline.cmd_default) +\
+        "    --help              : this message\n" +\
+        "    --list              : list conditional branches\n" +\
+        "    --trace             : Trace conditional branches\n"
+      )
+
+
 
 class ManageMemoryHooks(MemCommand):
   """
@@ -577,6 +626,7 @@ class ManageMemoryHooks(MemCommand):
         "    --reset             : Reset 'hook' injected memory area\n" +\
         "    --remove            : Remove 'hook' injected memory area\n"
       )
+
 
 
 

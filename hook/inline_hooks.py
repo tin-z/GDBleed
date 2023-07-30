@@ -17,6 +17,11 @@ from hook._constants import   ONLY_PRE_FUNC ,\
 from core.constants import *
 from utils.gdb_utils import search_string
 
+from core.disasm.disasm import WrapDisasm
+
+from config import  tmp_folder ,\
+                    LITTLE_ENDIAN ,\
+                    BIG_ENDIAN
 
 
 class HookTrampoline (GeneralHook) :
@@ -33,7 +38,7 @@ class HookTrampoline (GeneralHook) :
   """
 
 
-  def __init__(self, details, details_data, regs_) :
+  def __init__(self, details, details_data, regs_, disasm_strategy="r2") :
     fname = "write"
     self.str_unknown = "<unknown> \0".encode()
     self.str_emtpy = "\0\0\0\0".encode()
@@ -43,7 +48,7 @@ class HookTrampoline (GeneralHook) :
     self.addr_str_new_line = hook.inject_data(self.str_new_line)
     super(HookTrampoline, self).__init__(details, details_data, regs_, fname)
     self.__init_trampolines()
-
+    self.__init_gdbcov(disasm_strategy)
 
   def __init_trampolines(self) :
     self.trampoline_l = []
@@ -51,6 +56,15 @@ class HookTrampoline (GeneralHook) :
     self.__inject_trampoline_1()
     self.__inject_trampoline_2()
 
+  def __init_gdbcov(self, disasm_strategy):
+    self.disasm = WrapDisasm(
+      self.details, 
+      self.details_data, 
+      strategy=disasm_strategy
+    )
+    self.disasm.init()
+    #self.__inject_gdbcov_data()
+    #self.__inject_gdbcov_trampoline()
 
   def x86_64_code(self) :
     # junk code, to not break the abstract class
@@ -373,9 +387,76 @@ class HookTrampoline (GeneralHook) :
     self.trampoline_l.append((rets, len(buff)))
 
 
+  #def __inject_gdbcov_data(self):
+  #  # Because we are creating a bitmap instead of indexing it by all the space address 
+  #  # we rebase it by substractng the first non-executable sections
+  #  executable_offset = self.details_data["executable_offset"]    
+  #  executable_size = self.details_data["executable_size"]    
+  #  baddr = self.details_data["base_address"]
+
+  #  branches = self.disasm.get_conditional_branches()
+  #  branches_index = [x.offset_end - executable_offset for x in branches]
+
+  #  output = []                             # 1. gdbcov_list_bitmap (default value)
+  #  for i in range(executable_size) :
+  #    if i in branches_index :
+  #      output.append(b"\x01")
+  #    else :
+  #      output.append(b"\x00")
+  #  # Note 1:
+  #  # dynamically trampoline will get the index by doing: (return_address - base_address) - executable_offset
+  #  # questo valore poi lo salvo e lo riuso nella dichotomic
+
+  #  index_list = []                         # 2. gdbcov_list_indexes
+  #  jump_list = []                          # 3. gdbcov_list_jump
+  #  pack = "<L" if self.details["endian"] == LITTLE_ENDIAN else ">L"
+
+  #  for branch in branches :
+  #    index_list.append(struct.pack(pack, branch.offset_end))
+  #    jump_list.append(struct.pack(pack, branch.jump))
+
+  #  self.gdbcov_list_bitmap = b"".join(output)
+  #  self.gdbcov_list_bitmap_size = len(self.gdbcov_list_bitmap)
+
+  #  self.gdbcov_list_indexes = index_list
+  #  self.gdbcov_list_bitmap_size = len(self.gdbcov_list_indexes)
+
+
+  #  self.gdbcov_list_bitmap_addr = hook.inject_data(self.gdbcov_list_bitmap)
+
+
+  #def __inject_gdbcov_trampoline(self):
+  #  arch = self.details["arch"]
+  #  buff = b""
+
+  #  if arch == "x86-64" :
+  #    buff += self.do_asm("PUSH R10")
+  #    buff += self.do_asm("MOV R10, [RSP+8]")
+
+  #  LEA 
+  #    output.append("LEA RAX, [RSP+0x{:x}]".format(sp_arg + (1*self.details["capsize"])))
+
+  #  buff += self.regs_["pre_regs"].inject_code
+  #  buff += self.find_ret_addr
+
+
+
+
+  #  buff += self.inject_new_arguments()
+  #  buff += self.do_call_pre_func()
+  #  buff += self.realign_stack()
+  #  buff += self.regs_["post_regs"].inject_code
+
+
+
+
+
+
+
+
   def __inject_trampoline_2(self) :
     """
-      ONLY_PRE_FUNC trampoline:
+      TODO: to fix
 
       RET_PRE_FUNC trampoline:
         - Push new arguments
@@ -524,6 +605,134 @@ class HookTrampoline (GeneralHook) :
     rets = hook.inject_code(buff)
     self.inj_point_l.append(InjPoint(rets, len(buff), func_hooked, [func_hooking], ONLY_PRE_FUNC))
     return rets
+
+
+  def dichotomic_search_x64(self):
+    """
+      TODO: to move out on a custom class then create function with namespace "internal.*"
+
+      This is the dichotmic search optimized for intel x86-64
+      
+      Arguments required:
+        RDI := element to find
+        RSI := size list
+        RDX := pointer to list
+    """
+    start_point = [
+      "MOV RCX, 0"
+    ]
+    search_loop = [
+      "CMP RCX, RDX" ,\
+      ("JG", 2, "not_found") ,\
+    ]
+    #
+    calculate_point = [
+      "MOV RAX, RSI" ,\
+      "SUB RAX, RCX" ,\
+      "SHR RAX, 1" ,\
+      "ADD RAX, RCX" ,\
+      "MOV R10, [RDX + RAX * 4]" ,\
+      "CMP RDI, R10" ,\
+      ("JE", 2, "found")
+    ]
+    #
+    calculate_point_2 = [
+      ("JL", 2, "lower_loop") ,\
+    ]
+    #
+    upper_loop = [
+      "MOV RCX, RAX" ,\
+      "ADD RCX, 1" ,\
+      ("JMP", 5, "search_loop") ,\
+    ]
+    #
+    lower_loop = [
+      "MOV RSI, RAX" ,\
+      "SUB RSI, 1" ,\
+      ("JMP", 5, "search_loop") ,\
+    ]
+    # 
+    not_found = [
+      "MOV RAX, -1"
+    ]
+    # 
+    found = [
+      "MOV RAX, 0"
+    ]
+    #
+    assembly_code_list = [
+      "search_loop" ,\
+      "calculate_point" ,\
+      "calculate_point_2" ,\
+      "upper_loop" ,\
+      "lower_loop" ,\
+      "not_found" ,\
+      "found" ,\
+    ]
+    #
+    assembly_code_size = { }
+    for x in assembly_code_list :
+      l = locals()[x]
+      size = 0
+      for i in l :
+        if isinstance(i, str) :
+          size += len(self.assembler.asm(i)[0])
+        else :
+          size += i[1]
+      assembly_code_size.update(
+        {x : size}
+      )
+    #
+    # solve relative jmps
+    for x in assembly_code_list :
+      l = locals()[x]
+      for i, y in enumerate(l) :
+        if not isinstance(y, str) :
+          #
+          if y[1] == 2 :
+            size_list_keys = assembly_code_list[ \
+              assembly_code_list.index(x) + 1 :\
+              assembly_code_list.index(y[2]) \
+            ]
+            #print(
+            #  x, y, [ (k,assembly_code_size[k]) for k in size_list_keys ]
+            #)
+            #
+            relative_val = sum(
+              [ assembly_code_size[k] for k in size_list_keys ]
+            )
+          #
+          # negativa jmp near (occupies 5 bytes)
+          else :
+            size_list_keys = assembly_code_list[ \
+              assembly_code_list.index(y[2]) :\
+              assembly_code_list.index(x) \
+            ]
+            relative_val = 2**32 - sum(
+              [ assembly_code_size[k] for k in size_list_keys ]
+            )
+          #
+          l[i] = f"{y[0]} {hex(relative_val)}"
+    #
+    output = []
+    for x in assembly_code_list :
+      l = locals()[x]
+      #print(x, l)
+      output += l
+    #
+    data = self.assembler.asm(";".join(output))[0]
+    output_b = b""
+    for x in list(map(lambda x : x.to_bytes(1, byteorder='big'), data)) :
+      output_b += x
+    #
+    #print(assembly_code_size)
+    with open(f"{tmp_folder}/dichotomic_search.asm", "wb") as fp :
+      fp.write(output_b)
+
+
+
+
+
 
 
 

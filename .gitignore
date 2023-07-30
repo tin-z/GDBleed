@@ -13,3 +13,4 @@ site/
 site.zip
 *.pyc
 *.swp
+/out.asm
