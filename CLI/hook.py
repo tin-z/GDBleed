@@ -180,10 +180,15 @@ class HookGOTInline(MemCommand):
   def __init__(self, name, details, details_mem, details_data):
     super(HookGOTInline, self).__init__(name, details, details_mem)
     self.details_data = details_data
-    self.parser = WrapParser(details, details_mem, details_data)
-    self.compiler = Compiler(details, details_mem, details_data)
-    self.details_data["parser"] = self.parser
-    self.details_data["compiler"] = self.compiler
+
+    if self.details_data["parser"] == None :
+      self.details_data["parser"] = WrapParser(details, details_mem, details_data)
+    #
+    if self.details_data["compiler"] == None :
+      self.details_data["compiler"] = Compiler(details, details_mem, details_data)
+    #
+    self.parser = self.details_data["parser"] 
+    self.compiler = self.details_data["compiler"] 
 
 
   def do_list(self, argv) :
@@ -281,7 +286,6 @@ class HookGOTInline(MemCommand):
         Options:
             --help              : This message
             --create            : insert gdbleed script from STDIN or by file <file_path>
-            --data              : Define or list global/static vars
             --list              : print declared functions nformation
             --source-code       : print function's source code
             --remove            : delete function <function_name>
@@ -292,6 +296,8 @@ class HookGOTInline(MemCommand):
             --inject-post-ret   : inject-post-ret mode
             --inject-full       : inject-full mode
 
+            --data              : Define or list global/static vars menu
+            --gdbcov            : gdbcov menu
     """
     argv = [x.strip() for x in argv.split(" ") if x.strip() != "" ]
     arg0 = argv[0]
@@ -334,6 +340,9 @@ class HookGOTInline(MemCommand):
       elif "--compile" == arg0 :
         return self.do_compile(argv[1:])
 
+      elif "--gdbcov" == arg0 :
+        return self.do_gdbcov(argv[1:])
+
       else :
         raise Exception("Invalid argument given '{}'".format(argv))
 
@@ -355,6 +364,8 @@ class HookGOTInline(MemCommand):
         "       --inject-post       : inject-post mode\n" +\
         "       --inject-post-ret   : inject-post-ret mode\n" +\
         "       --inject-full       : inject-full mode\n" +\
+        "\n" +\
+        "       --gdbcov            : gdbcov menu\n" +\
         "\n" +\
         " Notes:\n" +\
         "   --inject                : call pre_func, jump to function-hooked\n" +\
@@ -537,6 +548,76 @@ class HookGOTInline(MemCommand):
       )
 
 
+  def do_gdbcov(self, argv) :
+    """
+	    Usage: <cmd-default> --gdbcov [options]
+
+      Options:
+            --help                          : this message
+            --list                          : list conditional branches
+            --trace                         : Trace conditional branches (internal function 'gdbcov.entry' must be present)
+            --init-data                     : Initialize gdbcov's data section
+            --init-trampoline <got-symbol>  : Initialize gdbcov's trampoline section by using got poisoning technique on <got-symbol>
+    """
+    try : 
+
+      if "--help" == argv[0] :
+        raise Exception("Help invoked")
+
+      elif "--trace" == argv[0] :
+
+        try :
+          fname = "gdbcov.entry"
+          func = self.parser.find_func(fname)
+        except Exception :
+          raise Exception(f"{fname} was not found declared as internal function")
+
+        hook.hook_trampoline.gdbcov_set_trace(func.addr)
+
+      elif "--list" == argv[0] :
+        argv = argv[1:]
+        jump_offset = None if argv == [] else int(argv[0], 16 if argv[0].startswith("0x") else 10)
+
+        conditional_branches = hook.hook_trampoline.disasm.get_conditional_branches(
+          jump_offset = jump_offset
+        )
+
+        print("# Conditional branches:")
+        for branch in conditional_branches :
+          print("{}: {}".format(
+            "0x" + hex(branch.arg_offset).split("0x")[1].rjust(
+              self.details["capsize"] * 2, "0"
+            ) ,\
+            branch.arg_opcode
+          ))
+
+      elif "--init-data" == argv[0] :
+        hook.hook_trampoline.init_gdbcov_data(self.details_mem)
+
+      elif "--init-trampoline" == argv[0] :
+        got_sym = argv[1].strip()
+        wrap_pltgot = self.details_data["got_entries"][got_sym]
+        addr_got    = wrap_pltgot.address_dyn
+        addr_target = wrap_pltgot.address_resolv
+        hook.hook_trampoline.init_gdbcov_trampoline(
+          self.details_mem ,\
+          addr_target
+        )
+
+    except Exception as ex :
+      self.details["slog"].append(str(ex))
+      self.details["slog"].append(
+	      "Usage: {} --gdbcov [options]\n".format(HookGOTInline.cmd_default) +\
+        "\n" +\
+        "Options:\n" +\
+        "    --help              : this message\n" +\
+        "    --list              : list conditional branches\n" +\
+        "    --trace             : Trace conditional branches\n" +\
+        "    --init-data         : Initialize gdbcov's data section\n" +\
+        "    --init-trampoline <got-symbol>  : Initialize gdbcov's trampoline section by using got poisoning technique on <got-symbol> (for intel amd64 it's not used got but the address 0) \n"
+      )
+
+
 
 class ManageMemoryHooks(MemCommand):
   """
@@ -577,6 +658,7 @@ class ManageMemoryHooks(MemCommand):
         "    --reset             : Reset 'hook' injected memory area\n" +\
         "    --remove            : Remove 'hook' injected memory area\n"
       )
+
 
 
 

@@ -174,3 +174,8 @@ def make_executable(details, addr, size, perm=7):
     pass
 
 
+def gdbapi_write(addr, value_bytes):
+  gdb.selected_inferior().write_memory(addr, value_bytes)
+
+
+

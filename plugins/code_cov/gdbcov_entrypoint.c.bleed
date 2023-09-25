@@ -1,0 +1,80 @@
+--skip--
+
+#+Function_name: gdbcov 
+#+Description: Initialize gdb coverage datas
+
+
+
+--declare--
+
+@@types@@
+  // Ignore section for internal functions
+  
+@@vars@@
+  // Here we declare only static vars and strings
+  __static__ gdbcov_base_address;
+  __static__ gdbcov_list_indexes;
+  __static__ gdbcov_list_jump;
+  __static__ gdbcov_list_indexes_size;
+
+  char * p = "\n##[==>\n arg1:0x%lx\n arg2:0x%lx\n arg3:0x%lx\n arg4:0x%lx\n";
+  char * p2 = "\n##[==>\n find offset:0x%lx\n offset found:0x%lx\n";
+  char * p3 = "[X] Cannot find index of element 0x%lx  ..exit\n";
+
+
+@@external-functions@@
+
+  __static__ gdbcov.dichotomic_search(2);
+  printf(2);
+  exit(1);
+
+
+--code--
+
+@@function@@
+
+
+#+define:
+// here we insert includes and struct typedf etc.
+//  - we can have only one "define" sub-section
+#include <unistd.h>
+
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+
+
+#+function:
+
+void entry(void * stack_addr, unsigned long branch_taken, unsigned long bitmap_index, void * struct_registers) {
+
+  printf(p, stack_addr, branch_taken, bitmap_index, struct_registers);
+
+  // if branch not taken just return
+  if (branch_taken ) {
+    int ret_index = dichotomic_search(bitmap_index, gdbcov_list_indexes_size, gdbcov_list_indexes); // -1 if was not found
+
+    if (ret_index < 0) {
+      printf(p3, bitmap_index);
+      exit(-1);
+    }
+
+    // printf(p2, ret_index, *((unsigned long long *)stack_addr+5));
+    *((unsigned long long *)stack_addr + 5) = ((unsigned long long)*((unsigned int *)gdbcov_list_jump + ret_index)) + gdbcov_base_address;
+    printf(p2, ret_index, *((unsigned long long *)stack_addr+5));
+    // printf(p2, ret_index, *((unsigned int *)gdbcov_list_jump + ret_index));
+
+  }
+
+  // in teoria se tutto va bene non deve rompersi nulla ... :)
+
+}
+
+
+
+@@post_func@@
+  // Ignore section for internal functions
+
+@@pre_func@@
+  // Ignore section for internal functions
+

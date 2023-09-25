@@ -16,6 +16,13 @@ from hook import examples
 
 
 
+MAP_ANONYMOUS=0x20
+MAP_FIXED=0x10
+MAP_PRIVATE=0x2
+MAP_SHARED=0x1
+
+
+
 initialized = False
 default_list = {}
 regs_ = {"pre_regs" : Pre_regs, "post_regs" : Post_regs}
@@ -41,8 +48,11 @@ allocated memory areas for code/data injection purpose
 """
 
 
+def inject_gdbcov_data(data):
+  return inject(data, "gdbcov.data", align_to=4)
+
 def inject_code(data) :
-  return inject(data, "text")
+  return inject(data, "text", align_to=4)
 
 def inject_data(data) :
   return inject(data, "data")
@@ -58,8 +68,11 @@ def inject_stack(data) :
   """
   return inject(data, "stack")
 
+def inject_gdbcov_data(data) :
+  return inject(data, "gdbcov.data", align_to=4)
 
-def inject(data, mem_area_k) :
+
+def inject(data, mem_area_k, align_to=0) :
   """
     Inject code/data and temporary bytes
 
@@ -71,6 +84,11 @@ def inject(data, mem_area_k) :
   size = len(data)
   mem_area = mem_inj_area[mem_area_k]
   addr = mem_area["addr"] + mem_area["offset"]
+
+  if align_to > 0 :
+    addendium = align_to - (mem_area["offset"] % align_to)
+    mem_area["offset"] += addendium
+
   if mem_area["offset"] + size <= mem_area["size"] :
     i = gdb.inferiors()[0]
     i.write_memory(addr, data, size)
@@ -92,7 +110,7 @@ def init(details, details_mem, details_data) :
   """
   global mem_inj_area, default_mem_inj_area 
   global default_list, initialized, regs_
-  global hook_trace, hook_trampoline
+  global hook_trace, hook_trampoline 
   if initialized :
     return
 
@@ -100,9 +118,21 @@ def init(details, details_mem, details_data) :
     mem_inj_area[k] = v.copy()
 
   for k,v in mem_inj_area.items() :
+    if v["mapped"] :
+      continue
+
     addr = v["addr"]
     size = v["size"]
-    rets = gdb.execute("mem-map --try-malloc 0x{:x} 0x{:x}".format(addr, size), to_string=True).strip().split("\n")[-1].strip()
+    permissions = "rwx"
+    flags = MAP_ANONYMOUS | MAP_PRIVATE
+
+    rets = gdb.execute(
+      "mem-map --try-malloc 0x{:x} 0x{:x} {} 0x{:x}".format(
+        addr, size, permissions, flags
+      ), 
+      to_string=True
+    ).strip().split("\n")[-1].strip()
+
     if rets.startswith("0x") :
       tmp_addr = int(rets, 16)
       if tmp_addr != addr :
@@ -129,6 +159,8 @@ def init(details, details_mem, details_data) :
   inject_stack("\x00" * details["capsize"])
   # 7. 28/56: num of arguments
   inject_stack("\x00" * details["capsize"])
+  # 8. 32/64: gdbcov function-hooking (fixed value)
+  inject_stack("\x00" * details["capsize"])
 
   regs_["pre_regs"] = Pre_regs(details)
   regs_["post_regs"] = Post_regs(details)
@@ -141,6 +173,96 @@ def init(details, details_mem, details_data) :
   hook_trampoline = HookTrampoline(details, details_data, regs_)
 
   initialized = True
+
+
+
+
+def init_gdbcov_0_address(details_mem, size):
+  """
+    NOTE: can't map '0' address to process children as MAP_PRIVATE is required for MAP_FIXED on the '0' address
+
+  """
+  # check if '0' address is already mapped
+  if 0 in details_mem["mm_addresses"] :
+    details["slog"].append(
+      "[!] NOTE: '0' address is already mapped"
+    )
+    return
+
+  addr = 0
+  permissions = "rwx"
+  flags = MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE
+
+  cmd = "mem-map --no-adjust-addr 0x{:x} 0x{:x} {} 0x{:x}".format(addr, size, permissions, flags)
+  rets = gdb.execute(
+    cmd ,\
+    to_string=True
+  ).strip().split("\n")[-1].strip()
+  
+  if rets.startswith("0x") :
+    tmp_addr = int(rets, 16)
+    if tmp_addr != 0 :
+      raise Exception(
+        f"[!] ERROR: can't map '0' address, the process must have CAP_SYS_RAWIO to do so ('{tmp_addr}')"
+      )
+
+  else : 
+    raise Exception("[!] ERROR: mmap(0, ...) returned an invalid value: '{}'".format(rets))
+
+
+def init_gdbcov_data(details, details_mem, details_data, size_gdbcov_data) :
+  """
+    Memory initialization for gdbcov functionalities
+
+  """
+  global mem_inj_area, default_mem_inj_area 
+  global default_list, initialized, regs_
+  global hook_trace, hook_trampoline 
+ 
+  # 1. map gdbcov data section
+  if "gdbcov.data" in mem_inj_area :
+    details["slog"].append(
+      "[!] Note: 'gdbcov.data' section is already mapped .. return"
+    )
+    return
+  else :
+    size_gdbcov_data += (4096 - (size_gdbcov_data % 4096))
+    mem_inj_area.update(
+      {"gdbcov.data" : {"addr":0x0, "size":size_gdbcov_data, "offset":0, "mapped":False}}
+    )
+
+    addr = 0
+    size = size_gdbcov_data
+    permissions = "rwx"
+    flags = MAP_ANONYMOUS | MAP_PRIVATE
+
+    cmd = "mem-map 0x{:x} 0x{:x} {} 0x{:x}".format(addr, size, permissions, flags)
+
+    rets = gdb.execute(
+      cmd ,\
+      to_string=True
+    ).strip().split("\n")[-1].strip()
+
+    if rets.startswith("0x") :
+      tmp_addr = int(rets, 16)
+      if tmp_addr != addr :
+        mem_inj_area["gdbcov.data"]["addr"] = tmp_addr
+      mem_inj_area["gdbcov.data"]["mapped"] = True
+
+    else : 
+      raise Exception("[!] ERROR: mmap(...) returned an invalid value: '{}'".format(rets))
+
+  # 2. Check '0' address for arch intel (if arch x86 or x86_64 we need to map 0 - 0x1000)
+  if details["arch"] in ["x86-64"] and "0" not in mem_inj_area :
+    size = 2**16 + 0xff0
+    init_gdbcov_0_address(details_mem, size)
+    if "0" not in mem_inj_area :
+      mem_inj_area.update({
+        "0" : {"addr":0x0, "size":size, "offset":0, "mapped":True}
+      })
+  
+  return tmp_addr
+
 
 
 def remove(details, details_mem, details_data) :

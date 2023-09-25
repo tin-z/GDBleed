@@ -130,29 +130,31 @@ if details["qemu_usermode"] :
 
 
 got_entries = GOT.got_symbols(binary_name, binary_name_local, base_address, size_base_address, details)
-section_entries = sections.elf_sections(binary_name, binary_name_local, base_address, details)
+executable_offset, executable_size, section_entries = sections.elf_sections(binary_name, binary_name_local, base_address, details)
 
 details_mem = {
-  "mm_regions" : mm_regions,
-  "mm_addresses" : mm_addresses,
-  "mm_regions_ctrl" : mm_regions_ctrl,
-  "mm_addresses_ctrl" : mm_addresses_ctrl
+  "mm_regions" : mm_regions ,\
+  "mm_addresses" : mm_addresses ,\
+  "mm_regions_ctrl" : mm_regions_ctrl ,\
+  "mm_addresses_ctrl" : mm_addresses_ctrl ,\
 }
 """
 Memory status dict
 """
 
 details_data = {
-  "binary_name" : binary_name,
-  "binary_name_local" : binary_name_local,
-  "base_address" : base_address,
-  "size_base_address" : size_base_address,
-  "libc_base_address" : libc_base_address,
-  "libc_size_base_address" : libc_size_base_address,
-  "got_entries" : got_entries,
-  "section_entries" : section_entries,
-  "parser" : None,
-  "compiler" : None
+  "binary_name" : binary_name ,\
+  "binary_name_local" : binary_name_local ,\
+  "base_address" : base_address ,\
+  "executable_offset" : executable_offset ,\
+  "executable_size" : executable_size ,\
+  "size_base_address" : size_base_address ,\
+  "libc_base_address" : libc_base_address ,\
+  "libc_size_base_address" : libc_size_base_address ,\
+  "got_entries" : got_entries ,\
+  "section_entries" : section_entries ,\
+  "parser" : None ,\
+  "compiler" : None ,\
 }
 """
 Binary related info dict

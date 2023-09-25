@@ -1,0 +1,62 @@
+--skip--
+
+#+Function_name: gdbcov 
+#+Description: Initialize gdb coverage datas
+
+
+
+--declare--
+
+@@types@@
+  // Ignore section for internal functions
+  
+@@vars@@
+  // Here we declare only static vars and strings
+
+
+@@external-functions@@
+
+
+--code--
+
+@@function@@
+
+
+#+define:
+// here we insert includes and struct typedf etc.
+//  - we can have only one "define" sub-section
+
+#+function:
+
+int dichotomic_search(unsigned int find_offset_32, int size, unsigned int * list) {
+  int start = 0;
+  int end = size - 1;
+  int i = 0;
+  unsigned int elem = 0;
+
+  while (start <= end) {
+  
+    i = ((end - start) >> 1) + start;
+    elem = list[i];
+  
+    if (find_offset_32 == elem)
+      return i;
+  
+    if (find_offset_32 < elem)
+      end = i - 1;
+  
+    else
+      start = i + 1;
+  
+  }
+
+  return -1;
+}
+
+
+@@post_func@@
+  // Ignore section for internal functions
+
+@@pre_func@@
+  // Ignore section for internal functions
+

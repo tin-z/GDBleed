@@ -9,7 +9,6 @@ fi
 ###
 ## 0. Prereq 
 #
-echo "[!] Install  GEF gdb extension (https://github.com/hugsy/gef)"
 
 if [ -z "$PYTHON_VER" ]; then
   echo "[!] Before continuing change/declare the 'PYTHON_VER' env var to the version of python which you intend to build on (refer to gdb python api version)"
@@ -33,15 +32,17 @@ fi
 
 if [ -z "`which radare2`" ]; then
   echo "[!] 'radare2' is no present, install it before continuing"
-
+  echo ""
+  echo "wget https://github.com/radareorg/radare2/releases/download/5.5.0/radare2_5.5.0_amd64.deb"
+  echo "dpkg -i ./radare2_5.5.0_amd64.deb"
+  echo ""
   echo "Set file '~/.radare2rc' as"
   # Show comments at right of disassembly if they fit in screen
   echo "e asm.cmt.right=true"
   # Shows pseudocode in disassembly. Eg mov eax, str.ok = > eax = str.ok
-  echo "e asm.pseudo = true"
+  #echo "e asm.pseudo = true"
   # Solarized theme
   echo "eco solarized"
-  # Use UTF-8 to show cool arrows that do not look like crap :)
   echo "e scr.utf8 = true"
   echo ""
   exit 1
@@ -51,6 +52,10 @@ if [ -z "`which virtualenv`" ]; then
   echo "[!] Install: 'sudo apt-get install ${PYTHON_VER}-distutils ${PYTHON_VER}-setuptools virtualenv'"
   echo ""
   exit 1
+fi
+
+if [ ! -f .gdbinit-gef.py ]; then
+  wget -O ./.gdbinit-gef.py -q https://gef.blah.cat/py
 fi
 
 

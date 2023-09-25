@@ -128,9 +128,10 @@ class MemMap(MemCommand):
     self.mmap_addr = int(rets[1], 16)
 
 
-  def do_mmap(self, addr, size, permissions) :
+  def do_mmap(self, addr, size, permissions, flags=None, do_adjust_addr=True) :
+
     perm = {"-":0, "r":mmap.PROT_READ, "w":mmap.PROT_WRITE, "x":mmap.PROT_EXEC}
-    flags = mmap.MAP_ANONYMOUS | mmap.MAP_PRIVATE
+    flags = mmap.MAP_ANONYMOUS | mmap.MAP_PRIVATE if flags == None else flags
 
     # adjust permissions
     perm_tmp = 0
@@ -145,12 +146,14 @@ class MemMap(MemCommand):
       self.details["slog"].append("Address '{}' already mapped ..changing".format(hex(addr)))
       # size mu be updated here, for now is fine
     #
-    if addr == 0 :
+    if addr == 0 and do_adjust_addr :
       adjust_addr = True
-    if adjust_addr :
-      addr = self.mm_addresses[0] - size
 
-    cmd = "call (void *) mmap({}, {}, {}, {}, 0, 0)".format(hex(addr), hex(size), permissions, flags)
+    if adjust_addr :
+      if self.mm_addresses[0] != 0 :
+        addr = self.mm_addresses[0] - size
+
+    cmd = "call (void *) mmap({}, {}, {}, {}, -1, 0)".format(hex(addr), hex(size), permissions, flags)
     try :
       rets = gdb.execute(cmd, to_string=True).strip()
     except :
@@ -184,34 +187,42 @@ class MemMap(MemCommand):
     allocated_with_malloc = False
 
     try_malloc = False
-    if "--try-malloc" in argv[0] :
+    malloc = False
+    do_adjust_addr = True
+
+    if "--help" == argv[0] :
+      raise Exception("--help")
+
+    if "--try-malloc" == argv[0] :
       try_malloc = True
       argv = argv[1:]
 
-    malloc = False
-    if "--malloc" in argv[0] :
+    elif "--malloc" == argv[0] :
       malloc = True
       argv = argv[1:]
 
-    try :
+    if not malloc :
+      if "--no-adjust-addr" == argv[0] :
+        argv = argv[1:]
+        do_adjust_addr = False
 
-      if argv[0].startswith("0x") :
-        size = int(argv[0], 16)
-      else :
-        size = int(argv[0])
+    try :
+      size = int(argv[0], 16 if argv[0].startswith("0x") else 10)
 
       if not malloc :
+
         addr = size
         size = 0x2000 
 
         if len(argv) > 1 :
-          if argv[1].startswith("0x") :
-            size = int(argv[1], 16)
-          else :
-            size = int(argv[1])
+          size = int(argv[1], 16 if argv[1].startswith("0x") else 10)
 
         permissions = "rwx" if len(argv) < 3 else argv[2]
-        rets = self.do_mmap(addr, size, permissions)
+
+        flags = None  if len(argv) < 4 else int(argv[3], 16 if argv[3].startswith("0x") else 10)
+
+        rets = self.do_mmap(addr, size, permissions, flags, do_adjust_addr)
+
         if rets == None :
           tmp_str = "[!] mmap call Fail, address given:'{}', returned value: '{}'".format(hex(addr), rets)
           if not try_malloc :
@@ -258,14 +269,16 @@ class MemMap(MemCommand):
       print(hex(addr))
 
     except Exception as ex :
-      self.details["slog"].append(str(ex))
       self.details["slog"].append(
-        "Usage: {} [--try-malloc] <address> [size] [permissions]".format(MemMap.cmd_default) + "\n" +\
+        "Usage: {} [--help] [--try-malloc] [--no-adjust-addr] <address> [size] [permissions] [flags]".format(MemMap.cmd_default) + "\n" +\
         ":      {} [--malloc] <size>".format(MemMap.cmd_default) + "\n" +\
-        "     --try-malloc : if mmap fails try malloc instead\n" +\
-        "     address      : choose the address to map (insert '0' to let gdb choose)\n" +\
-        "     size         : size to map (default: '0x2000')\n" +\
-        "     permissions  : memory region permissions, e.g 'rx' (default: 'rwx')\n" +\
+        "     --help             : This message\n" +\
+        "     --try-malloc       : if mmap fails try malloc instead\n" +\
+        "     --no-adjust-addr   : Don't try to map memory near to previous allocated memory\n" +\
+        "     address            : choose the address to map (insert '0' to let gdb choose)\n" +\
+        "     size               : size to map (default: '0x2000')\n" +\
+        "     permissions        : memory region permissions, e.g 'rx' (default: 'rwx')\n" +\
+        "     flags              : flags\n" +\
         "\n" +\
         "     --malloc     : allocate memory using malloc only\n" +\
         "     size         : size\n"

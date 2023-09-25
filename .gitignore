@@ -13,3 +13,9 @@ site/
 site.zip
 *.pyc
 *.swp
+/out.asm
+.gdbinit-gef.py
+cscope.files
+cscope.in.out
+cscope.out
+cscope.po.out

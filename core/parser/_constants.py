@@ -118,7 +118,6 @@ special_symbols_types["{0}num_arg{0}".format(sep_special_char)] = "unsigned long
 
 ## pre_func settings
 
-
 ### pre_func decl
 pre_func_decl = "void * pre_func("
 pre_func_return = "return 0;\n}"
@@ -135,13 +134,7 @@ pre_func_decl += "{"
 pre_func_decl_x86_64 += "{"
 
 
-
-
-
-
-
-
-## function type enum
+## function type enum 
 PRE_FUNC = 1
 POST_FUNC = 2
 INTERNAL_FUNC = 4
