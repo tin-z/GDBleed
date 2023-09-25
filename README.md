@@ -2,6 +2,9 @@
 
 [![Docs](https://img.shields.io/badge/Documentation-blue.svg)](https://tin-z.github.io/gdbleed/) [![MIT](https://img.shields.io/packagist/l/doctrine/orm.svg?maxAge=2592000?style=plastic)](https://github.com/tin-z/GDBleed/blob/main/LICENSE)
 
+:warning: Please note the binary instrumentation part is implemented by [GDBcov](README.gdbcov.md), which is still a work in progress.
+
+
 GDBleed - Dynamic-Static binary instrumentation framework on top of GDB
 
 `GDBleed` is a gdb wrapper exposing a set of commands for x86-64, ARM and MIPS
